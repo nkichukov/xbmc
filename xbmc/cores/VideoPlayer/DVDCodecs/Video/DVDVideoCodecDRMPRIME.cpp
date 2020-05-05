@@ -37,6 +37,39 @@ namespace
 
 constexpr const char* SETTING_VIDEOPLAYER_USEPRIMEDECODERFORHW{"videoplayer.useprimedecoderforhw"};
 
+static void ReleaseBuffer(void* opaque, uint8_t* data)
+{
+  CVideoBufferDMA* buffer = static_cast<CVideoBufferDMA*>(opaque);
+  buffer->Release();
+}
+
+static void AlignedSize(AVCodecContext* avctx, int& width, int& height)
+{
+  int w = width;
+  int h = height;
+  AVFrame picture;
+  int unaligned;
+  int stride_align[AV_NUM_DATA_POINTERS];
+
+  avcodec_align_dimensions2(avctx, &w, &h, stride_align);
+
+  do
+  {
+    // NOTE: do not align linesizes individually, this breaks e.g. assumptions
+    // that linesize[0] == 2*linesize[1] in the MPEG-encoder for 4:2:2
+    av_image_fill_linesizes(picture.linesize, avctx->pix_fmt, w);
+    // increase alignment of w for next try (rhs gives the lowest bit set in w)
+    w += w & ~(w - 1);
+
+    unaligned = 0;
+    for (int i = 0; i < 4; i++)
+      unaligned |= picture.linesize[i] % stride_align[i];
+  } while (unaligned);
+
+  width = w;
+  height = h;
+}
+
 } // namespace
 
 CDVDVideoCodecDRMPRIME::CDVDVideoCodecDRMPRIME(CProcessInfo& processInfo)
@@ -145,39 +178,6 @@ enum AVPixelFormat CDVDVideoCodecDRMPRIME::GetFormat(struct AVCodecContext* avct
 
   CLog::Log(LOGERROR, "CDVDVideoCodecDRMPRIME::{} - unsupported pixel format", __FUNCTION__);
   return AV_PIX_FMT_NONE;
-}
-
-static void ReleaseBuffer(void* opaque, uint8_t* data)
-{
-  CVideoBufferDMA* buffer = static_cast<CVideoBufferDMA*>(opaque);
-  buffer->Release();
-}
-
-static void AlignedSize(AVCodecContext* avctx, int& width, int& height)
-{
-  int w = width;
-  int h = height;
-  AVFrame picture;
-  int unaligned;
-  int stride_align[AV_NUM_DATA_POINTERS];
-
-  avcodec_align_dimensions2(avctx, &w, &h, stride_align);
-
-  do
-  {
-    // NOTE: do not align linesizes individually, this breaks e.g. assumptions
-    // that linesize[0] == 2*linesize[1] in the MPEG-encoder for 4:2:2
-    av_image_fill_linesizes(picture.linesize, avctx->pix_fmt, w);
-    // increase alignment of w for next try (rhs gives the lowest bit set in w)
-    w += w & ~(w - 1);
-
-    unaligned = 0;
-    for (int i = 0; i < 4; i++)
-      unaligned |= picture.linesize[i] % stride_align[i];
-  } while (unaligned);
-
-  width = w;
-  height = h;
 }
 
 int CDVDVideoCodecDRMPRIME::GetBuffer(struct AVCodecContext* avctx, AVFrame* frame, int flags)
