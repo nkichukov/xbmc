@@ -3851,7 +3851,7 @@ int CVideoPlayer::OnDiscNavResult(void* pData, int iMessage)
     switch (iMessage)
     {
     case BD_EVENT_MENU_OVERLAY:
-      m_overlayContainer.Add(static_cast<CDVDOverlay*>(pData));
+      m_overlayContainer.ProcessAndAddOverlayIfValid(static_cast<CDVDOverlay*>(pData));
       break;
     case BD_EVENT_PLAYLIST_STOP:
       m_messenger.Put(new CDVDMsg(CDVDMsg::GENERAL_FLUSH));
