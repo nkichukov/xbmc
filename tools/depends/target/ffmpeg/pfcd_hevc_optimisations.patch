@@ -1,149 +1,6 @@
-diff -upPr --minimal a/CMakeLists.txt b/CMakeLists.txt
---- a/CMakeLists.txt	1970-01-01 00:00:00.000000000 -0000
-+++ b/CMakeLists.txt	2020-08-31 12:23:50.876728922 -0000
-@@ -0,0 +1,139 @@
-+project(ffmpeg)
-+
-+cmake_minimum_required(VERSION 2.8)
-+
-+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
-+
-+if(ENABLE_CCACHE AND CCACHE_PROGRAM)
-+  set(ffmpeg_conf "--cc=${CCACHE_PROGRAM} ${CMAKE_C_COMPILER}" "--cxx=${CCACHE_PROGRAM} ${CMAKE_CXX_COMPILER}")
-+else()
-+  set(ffmpeg_conf --cc=${CMAKE_C_COMPILER} --cxx=${CMAKE_CXX_COMPILER})
-+endif()
-+
-+if(CROSSCOMPILING)
-+  set(pkgconf "PKG_CONFIG_LIBDIR=${DEPENDS_PATH}/lib/pkgconfig")
-+  list(APPEND ffmpeg_conf --pkg-config=${PKG_CONFIG_EXECUTABLE} --pkg-config-flags=--static)
-+  list(APPEND ffmpeg_conf --enable-cross-compile --cpu=${CPU} --arch=${CPU} --target-os=${OS})
-+  list(APPEND ffmpeg_conf --ar=${CMAKE_AR} --strip=${CMAKE_STRIP})
-+  message(STATUS "CROSS: ${ffmpeg_conf}")
-+endif()
-+
-+if(CORE_PLATFORM_NAME STREQUAL rbpi)
-+  string(CONCAT CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux")
-+  list(APPEND ffmpeg_conf --enable-rpi)
-+endif()
-+
-+if(CMAKE_C_FLAGS)
-+  list(APPEND ffmpeg_conf --extra-cflags=${CMAKE_C_FLAGS})
-+endif()
-+
-+if(CMAKE_CXX_FLAGS)
-+  list(APPEND ffmpeg_conf --extra-cxxflags=${CMAKE_CXX_FLAGS})
-+endif()
-+
-+if(CMAKE_EXE_LINKER_FLAGS)
-+  list(APPEND ffmpeg_conf --extra-ldflags=${CMAKE_EXE_LINKER_FLAGS})
-+endif()
-+
-+if(ENABLE_NEON)
-+  list(APPEND ffmpeg_conf --enable-neon)
-+endif()
-+
-+if(CMAKE_BUILD_TYPE STREQUAL Release)
-+  list(APPEND ffmpeg_conf --disable-debug)
-+endif()
-+
-+if(CORE_SYSTEM_NAME STREQUAL linux OR CORE_SYSTEM_NAME STREQUAL freebsd)
-+  if(CORE_PLATFORM_NAME STREQUAL rbpi)
-+    list(APPEND ffmpeg_conf --cpu=${CPU} --disable-vaapi --disable-vdpau)
-+  else()
-+    list(APPEND ffmpeg_conf --enable-pic)
-+    if(ENABLE_VAAPI)
-+      list(APPEND ffmpeg_conf --enable-vaapi)
-+    else()
-+      list(APPEND ffmpeg_conf --disable-vaapi)
-+    endif()
-+    if(ENABLE_VDPAU)
-+      list(APPEND ffmpeg_conf --enable-vdpau)
-+    else()
-+      list(APPEND ffmpeg_conf --disable-vdpau)
-+    endif()
-+  endif()
-+elseif(CORE_SYSTEM_NAME STREQUAL android)
-+  if(CPU MATCHES arm64)
-+    list(APPEND ffmpeg_conf --cpu=cortex-a53 --arch=aarch64)
-+  elseif(CPU MATCHES arm)
-+    list(APPEND ffmpeg_conf --cpu=cortex-a9)
-+  elseif(CPU MATCHES x86_64)
-+    list(APPEND ffmpeg_conf --cpu=x86_64 --enable-pic)
-+  else()
-+    list(APPEND ffmpeg_conf --cpu=i686 --disable-mmx)
-+  endif()
-+  list(APPEND ffmpeg_conf --target-os=linux --extra-libs=-liconv --disable-linux-perf)
-+elseif(CORE_SYSTEM_NAME STREQUAL darwin_embedded)
-+  list(APPEND ffmpeg_conf "--as=${NATIVEPREFIX}/bin/gas-preprocessor.pl -arch aarch64 -- ${CMAKE_C_COMPILER}")
-+  list(APPEND ffmpeg_conf --disable-decoder=mpeg_xvmc --disable-crystalhd --enable-videotoolbox
-+                          --target-os=darwin)
-+elseif(CORE_SYSTEM_NAME STREQUAL osx)
-+  list(APPEND ffmpeg_conf --disable-decoder=mpeg_xvmc --disable-crystalhd --enable-videotoolbox
-+                          --target-os=darwin
-+                          --disable-securetransport)
-+endif()
-+
-+if(CPU MATCHES arm OR CORE_PLATFORM_NAME STREQUAL rbpi)
-+  list(APPEND ffmpeg_conf --enable-pic --disable-armv5te --disable-armv6t2)
-+elseif(CPU MATCHES mips)
-+  list(APPEND ffmpeg_conf --disable-mips32r2 --disable-mipsdsp --disable-mipsdspr2)
-+endif()
-+
-+find_package(GnuTls)
-+if(GNUTLS_FOUND)
-+  list(APPEND ffmpeg_conf --enable-gnutls)
-+endif()
-+
-+if(ENABLE_DAV1D)
-+  list(APPEND ffmpeg_conf --enable-libdav1d)
-+  set(pkgconf_path "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}")
-+else()
-+  list(APPEND ffmpeg_conf --disable-libdav1d)
-+endif()
-+
-+if(EXTRA_FLAGS)
-+  list(APPEND ffmpeg_conf ${EXTRA_FLAGS})
-+endif()
-+
-+message(STATUS "FFMPEG_CONF: ${ffmpeg_conf}")
-+
-+include(ExternalProject)
-+externalproject_add(ffmpeg
-+                    SOURCE_DIR ${CMAKE_SOURCE_DIR}
-+                    CONFIGURE_COMMAND ${pkgconf} ${pkgconf_path} <SOURCE_DIR>/configure
-+                      --prefix=${CMAKE_INSTALL_PREFIX}
-+                      --extra-version="kodi-${FFMPEG_VER}"
-+                      --disable-devices
-+                      --disable-doc
-+                      --disable-ffplay
-+                      --disable-ffmpeg
-+                      --disable-ffprobe
-+                      --enable-gpl
-+                      --enable-runtime-cpudetect
-+                      --enable-postproc
-+                      --enable-pthreads
-+                      --enable-muxer=spdif
-+                      --enable-muxer=adts
-+                      --enable-muxer=asf
-+                      --enable-muxer=ipod
-+                      --enable-encoder=ac3
-+                      --enable-encoder=aac
-+                      --enable-encoder=wmav2
-+                      --enable-protocol=http
-+                      --enable-encoder=png
-+                      --enable-encoder=mjpeg
-+                      ${ffmpeg_conf})
-+
-+install(CODE "Message(Done)")
-+
-+# Quell warnings
-+set(BUILD_SHARED_LIBS)
-+set(XBMC_BUILD_DIR)
-+set(KODI_BUILD_DIR)
 diff -upPr --minimal a/configure b/configure
 --- a/configure	2020-06-17 18:39:23.000000000 -0000
-+++ b/configure	2020-08-31 12:23:51.040728929 -0000
++++ b/configure	2020-08-31 12:58:47.776817009 -0000
 @@ -336,6 +336,7 @@ External library support:
    --enable-libmfx          enable Intel MediaSDK (AKA Quick Sync Video) code via libmfx [no]
    --enable-libnpp          enable Nvidia Performance Primitives-based code [no]
@@ -7845,7 +7702,7 @@ diff -upPr --minimal a/configure.orig b/configure.orig
 +cp_if_changed $TMPH ffbuild/config.sh
 diff -upPr --minimal a/fftools/ffmpeg.c b/fftools/ffmpeg.c
 --- a/fftools/ffmpeg.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/fftools/ffmpeg.c	2020-08-31 12:23:51.044728929 -0000
++++ b/fftools/ffmpeg.c	2020-08-31 12:58:47.780817009 -0000
 @@ -24,6 +24,12 @@
   */
  
@@ -13095,7 +12952,7 @@ diff -upPr --minimal a/fftools/ffmpeg.c.orig b/fftools/ffmpeg.c.orig
 +}
 diff -upPr --minimal a/fftools/ffmpeg_filter.c b/fftools/ffmpeg_filter.c
 --- a/fftools/ffmpeg_filter.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/fftools/ffmpeg_filter.c	2020-08-31 12:23:51.048728929 -0000
++++ b/fftools/ffmpeg_filter.c	2020-08-31 12:58:47.780817009 -0000
 @@ -1186,8 +1186,8 @@ int ifilter_parameters_from_frame(InputF
  
      ifilter->format = frame->format;
@@ -14331,7 +14188,7 @@ diff -upPr --minimal a/fftools/ffmpeg_filter.c.orig b/fftools/ffmpeg_filter.c.or
 +}
 diff -upPr --minimal a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
 --- a/fftools/ffmpeg_opt.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/fftools/ffmpeg_opt.c	2020-08-31 12:23:51.048728929 -0000
++++ b/fftools/ffmpeg_opt.c	2020-08-31 12:58:47.784817009 -0000
 @@ -751,11 +751,19 @@ static AVCodec *choose_decoder(OptionsCo
  
      MATCH_PER_STREAM_OPT(codec_names, str, codec_name, s, st);
@@ -18132,40 +17989,9 @@ diff -upPr --minimal a/fftools/ffmpeg_opt.c.orig b/fftools/ffmpeg_opt.c.orig
 +
 +    { NULL, },
 +};
-diff -upPr --minimal a/FindGnuTls.cmake b/FindGnuTls.cmake
---- a/FindGnuTls.cmake	1970-01-01 00:00:00.000000000 -0000
-+++ b/FindGnuTls.cmake	2020-08-31 12:23:50.940728925 -0000
-@@ -0,0 +1,27 @@
-+# - Try to find gnutls
-+# Once done this will define
-+#
-+# GNUTLS_FOUND - system has gnutls
-+# GNUTLS_INCLUDE_DIRS - the gnutls include directory
-+# GNUTLS_LIBRARIES - The gnutls libraries
-+
-+include(FindPkgConfig)
-+find_package(PkgConfig)
-+
-+if(PKG_CONFIG_FOUND)
-+  pkg_check_modules (GNUTLS gnutls)
-+endif()
-+
-+if(NOT GNUTLS_FOUND)
-+  find_path(GNUTLS_INCLUDE_DIRS gnutls/gnutls.h)
-+  find_library(GNUTLS_LIBRARIES gnutls)
-+endif()
-+
-+include(FindPackageHandleStandardArgs)
-+find_package_handle_standard_args(GnuTls DEFAULT_MSG GNUTLS_INCLUDE_DIRS GNUTLS_LIBRARIES)
-+
-+if(GNUTLS_FOUND)
-+  list(APPEND GNUTLS_DEFINITIONS -DHAVE_GNUTLS=1)
-+endif()
-+
-+mark_as_advanced(GNUTLS_INCLUDE_DIRS GNUTLS_LIBRARIES GNUTLS_DEFINITIONS)
 diff -upPr --minimal a/.gitignore b/.gitignore
 --- a/.gitignore	2020-06-17 18:39:23.000000000 -0000
-+++ b/.gitignore	2020-08-31 12:23:51.036728929 -0000
++++ b/.gitignore	2020-08-31 12:58:47.768817009 -0000
 @@ -1,6 +1,7 @@
  *.a
  *.o
@@ -18184,7 +18010,7 @@ diff -upPr --minimal a/.gitignore b/.gitignore
  /ffprobe
 diff -upPr --minimal a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
 --- a/libavcodec/allcodecs.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/allcodecs.c	2020-08-31 12:23:51.052728929 -0000
++++ b/libavcodec/allcodecs.c	2020-08-31 12:58:47.788817010 -0000
 @@ -146,6 +146,7 @@ extern AVCodec ff_h264_qsv_decoder;
  extern AVCodec ff_h264_rkmpp_decoder;
  extern AVCodec ff_hap_encoder;
@@ -19191,7 +19017,7 @@ diff -upPr --minimal a/libavcodec/allcodecs.c.orig b/libavcodec/allcodecs.c.orig
 +}
 diff -upPr --minimal a/libavcodec/arm/cabac.h b/libavcodec/arm/cabac.h
 --- a/libavcodec/arm/cabac.h	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/arm/cabac.h	2020-08-31 12:23:51.052728929 -0000
++++ b/libavcodec/arm/cabac.h	2020-08-31 12:58:47.788817010 -0000
 @@ -26,83 +26,209 @@
  #include "libavutil/internal.h"
  #include "libavcodec/cabac.h"
@@ -19472,7 +19298,7 @@ diff -upPr --minimal a/libavcodec/arm/cabac.h b/libavcodec/arm/cabac.h
  #endif /* AVCODEC_ARM_CABAC_H */
 diff -upPr --minimal a/libavcodec/arm/Makefile b/libavcodec/arm/Makefile
 --- a/libavcodec/arm/Makefile	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/arm/Makefile	2020-08-31 12:23:51.052728929 -0000
++++ b/libavcodec/arm/Makefile	2020-08-31 12:58:47.788817010 -0000
 @@ -40,6 +40,8 @@ OBJS-$(CONFIG_AAC_DECODER)             +
                                            arm/sbrdsp_init_arm.o
  OBJS-$(CONFIG_DCA_DECODER)             += arm/synth_filter_init_arm.o
@@ -19671,7 +19497,7 @@ diff -upPr --minimal a/libavcodec/arm/Makefile.orig b/libavcodec/arm/Makefile.or
 +                                          arm/vp9mc_neon.o
 diff -upPr --minimal a/libavcodec/arm/rpi_hevc_cabac.h b/libavcodec/arm/rpi_hevc_cabac.h
 --- a/libavcodec/arm/rpi_hevc_cabac.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevc_cabac.h	2020-08-31 12:23:51.056728930 -0000
++++ b/libavcodec/arm/rpi_hevc_cabac.h	2020-08-31 12:58:47.788817010 -0000
 @@ -0,0 +1,605 @@
 +/*
 + * This file is part of FFmpeg.
@@ -20280,7 +20106,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevc_cabac.h b/libavcodec/arm/rpi_hevc
 +#endif /* AVCODEC_ARM_HEVC_CABAC_H */
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_arm.h b/libavcodec/arm/rpi_hevcdsp_arm.h
 --- a/libavcodec/arm/rpi_hevcdsp_arm.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcdsp_arm.h	2020-08-31 12:23:51.056728930 -0000
++++ b/libavcodec/arm/rpi_hevcdsp_arm.h	2020-08-31 12:58:47.792817010 -0000
 @@ -0,0 +1,26 @@
 +/*
 + * This file is part of FFmpeg.
@@ -20310,7 +20136,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_arm.h b/libavcodec/arm/rpi_hev
 +#endif /* AVCODEC_ARM_HEVCDSP_ARM_H */
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_deblock_neon.S b/libavcodec/arm/rpi_hevcdsp_deblock_neon.S
 --- a/libavcodec/arm/rpi_hevcdsp_deblock_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcdsp_deblock_neon.S	2020-08-31 12:23:51.060728930 -0000
++++ b/libavcodec/arm/rpi_hevcdsp_deblock_neon.S	2020-08-31 12:58:47.796817010 -0000
 @@ -0,0 +1,1633 @@
 +/*
 + * Copyright (c) 2014 Seppo Tomperi <seppo.tomperi@vtt.fi>
@@ -21947,7 +21773,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_deblock_neon.S b/libavcodec/ar
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_idct_neon.S b/libavcodec/arm/rpi_hevcdsp_idct_neon.S
 --- a/libavcodec/arm/rpi_hevcdsp_idct_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcdsp_idct_neon.S	2020-08-31 12:23:51.060728930 -0000
++++ b/libavcodec/arm/rpi_hevcdsp_idct_neon.S	2020-08-31 12:58:47.796817010 -0000
 @@ -0,0 +1,183 @@
 +/*
 + * Copyright (c) 2014 Seppo Tomperi <seppo.tomperi@vtt.fi>
@@ -22134,7 +21960,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_idct_neon.S b/libavcodec/arm/r
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_init_arm.c b/libavcodec/arm/rpi_hevcdsp_init_arm.c
 --- a/libavcodec/arm/rpi_hevcdsp_init_arm.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcdsp_init_arm.c	2020-08-31 12:23:51.060728930 -0000
++++ b/libavcodec/arm/rpi_hevcdsp_init_arm.c	2020-08-31 12:58:47.796817010 -0000
 @@ -0,0 +1,32 @@
 +/*
 + * Copyright (c) 2014 Seppo Tomperi <seppo.tomperi@vtt.fi>
@@ -22170,7 +21996,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_init_arm.c b/libavcodec/arm/rp
 +}
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_init_neon.c b/libavcodec/arm/rpi_hevcdsp_init_neon.c
 --- a/libavcodec/arm/rpi_hevcdsp_init_neon.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcdsp_init_neon.c	2020-08-31 12:23:51.064728930 -0000
++++ b/libavcodec/arm/rpi_hevcdsp_init_neon.c	2020-08-31 12:58:47.796817010 -0000
 @@ -0,0 +1,467 @@
 +/*
 + * Copyright (c) 2014 Seppo Tomperi <seppo.tomperi@vtt.fi>
@@ -22641,7 +22467,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_init_neon.c b/libavcodec/arm/r
 +}
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_res16_neon.S b/libavcodec/arm/rpi_hevcdsp_res16_neon.S
 --- a/libavcodec/arm/rpi_hevcdsp_res16_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcdsp_res16_neon.S	2020-08-31 12:23:51.064728930 -0000
++++ b/libavcodec/arm/rpi_hevcdsp_res16_neon.S	2020-08-31 12:58:47.800817010 -0000
 @@ -0,0 +1,591 @@
 +#include "libavutil/arm/asm.S"
 +#include "neon.S"
@@ -23236,7 +23062,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_res16_neon.S b/libavcodec/arm/
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_res8_neon.S b/libavcodec/arm/rpi_hevcdsp_res8_neon.S
 --- a/libavcodec/arm/rpi_hevcdsp_res8_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcdsp_res8_neon.S	2020-08-31 12:23:51.064728930 -0000
++++ b/libavcodec/arm/rpi_hevcdsp_res8_neon.S	2020-08-31 12:58:47.800817010 -0000
 @@ -0,0 +1,712 @@
 +#include "libavutil/arm/asm.S"
 +#include "neon.S"
@@ -23952,7 +23778,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_res8_neon.S b/libavcodec/arm/r
 +@ ============================================================================
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_sao_neon.S b/libavcodec/arm/rpi_hevcdsp_sao_neon.S
 --- a/libavcodec/arm/rpi_hevcdsp_sao_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcdsp_sao_neon.S	2020-08-31 12:23:51.068728930 -0000
++++ b/libavcodec/arm/rpi_hevcdsp_sao_neon.S	2020-08-31 12:58:47.804817010 -0000
 @@ -0,0 +1,2245 @@
 +/*
 + * Copyright (c) 2014 - 2015 Seppo Tomperi <seppo.tomperi@vtt.fi>
@@ -26201,7 +26027,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcdsp_sao_neon.S b/libavcodec/arm/rp
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevc_idct_fn_neon.S b/libavcodec/arm/rpi_hevc_idct_fn_neon.S
 --- a/libavcodec/arm/rpi_hevc_idct_fn_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevc_idct_fn_neon.S	2020-08-31 12:23:51.056728930 -0000
++++ b/libavcodec/arm/rpi_hevc_idct_fn_neon.S	2020-08-31 12:58:47.792817010 -0000
 @@ -0,0 +1,161 @@
 +@ Included multiple times from hevc_idct_neon.S
 +@ Macros defined there
@@ -26366,7 +26192,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevc_idct_fn_neon.S b/libavcodec/arm/r
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevc_misc_neon.h b/libavcodec/arm/rpi_hevc_misc_neon.h
 --- a/libavcodec/arm/rpi_hevc_misc_neon.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevc_misc_neon.h	2020-08-31 12:23:51.056728930 -0000
++++ b/libavcodec/arm/rpi_hevc_misc_neon.h	2020-08-31 12:58:47.792817010 -0000
 @@ -0,0 +1,438 @@
 +/*
 + * This file is part of FFmpeg.
@@ -26808,7 +26634,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevc_misc_neon.h b/libavcodec/arm/rpi_
 +#endif /* AVCODEC_ARM_RPI_HEVC_MISC_H */
 diff -upPr --minimal a/libavcodec/arm/rpi_hevc_misc_neon.S b/libavcodec/arm/rpi_hevc_misc_neon.S
 --- a/libavcodec/arm/rpi_hevc_misc_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevc_misc_neon.S	2020-08-31 12:23:51.056728930 -0000
++++ b/libavcodec/arm/rpi_hevc_misc_neon.S	2020-08-31 12:58:47.792817010 -0000
 @@ -0,0 +1,238 @@
 +#include "libavutil/arm/asm.S"
 +#include "neon.S"
@@ -27050,7 +26876,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevc_misc_neon.S b/libavcodec/arm/rpi_
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevc_mv_arm.h b/libavcodec/arm/rpi_hevc_mv_arm.h
 --- a/libavcodec/arm/rpi_hevc_mv_arm.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevc_mv_arm.h	2020-08-31 12:23:51.056728930 -0000
++++ b/libavcodec/arm/rpi_hevc_mv_arm.h	2020-08-31 12:58:47.792817010 -0000
 @@ -0,0 +1,64 @@
 +#ifndef AVCODEC_ARM_RPI_HEVC_MV_H
 +#define AVCODEC_ARM_RPI_HEVC_MV_H
@@ -27118,7 +26944,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevc_mv_arm.h b/libavcodec/arm/rpi_hev
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_arm.h b/libavcodec/arm/rpi_hevcpred_arm.h
 --- a/libavcodec/arm/rpi_hevcpred_arm.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcpred_arm.h	2020-08-31 12:23:51.068728930 -0000
++++ b/libavcodec/arm/rpi_hevcpred_arm.h	2020-08-31 12:58:47.804817010 -0000
 @@ -0,0 +1,28 @@
 +/*
 + * This file is part of FFmpeg.
@@ -27150,7 +26976,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_arm.h b/libavcodec/arm/rpi_he
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_init_arm.c b/libavcodec/arm/rpi_hevcpred_init_arm.c
 --- a/libavcodec/arm/rpi_hevcpred_init_arm.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcpred_init_arm.c	2020-08-31 12:23:51.068728930 -0000
++++ b/libavcodec/arm/rpi_hevcpred_init_arm.c	2020-08-31 12:58:47.804817010 -0000
 @@ -0,0 +1,35 @@
 +/*
 + * Copyright (c) 2018 John Cox (for Raspberry Pi)
@@ -27189,7 +27015,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_init_arm.c b/libavcodec/arm/r
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_init_neon.c b/libavcodec/arm/rpi_hevcpred_init_neon.c
 --- a/libavcodec/arm/rpi_hevcpred_init_neon.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcpred_init_neon.c	2020-08-31 12:23:51.068728930 -0000
++++ b/libavcodec/arm/rpi_hevcpred_init_neon.c	2020-08-31 12:58:47.804817010 -0000
 @@ -0,0 +1,210 @@
 +/*
 + * Copyright (c) 2018 John Cox (for Raspberry Pi)
@@ -27403,7 +27229,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_init_neon.c b/libavcodec/arm/
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_angular_neon.S b/libavcodec/arm/rpi_hevcpred_intra_angular_neon.S
 --- a/libavcodec/arm/rpi_hevcpred_intra_angular_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcpred_intra_angular_neon.S	2020-08-31 12:23:51.072728930 -0000
++++ b/libavcodec/arm/rpi_hevcpred_intra_angular_neon.S	2020-08-31 12:58:47.812817011 -0000
 @@ -0,0 +1,2975 @@
 +/*
 + * Copyright (c) 2018 John Cox <jc@kynesim.co.uk> (for Raspberry Pi)
@@ -30382,7 +30208,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_angular_neon.S b/libavc
 +endfunc
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_dc_neon.S b/libavcodec/arm/rpi_hevcpred_intra_dc_neon.S
 --- a/libavcodec/arm/rpi_hevcpred_intra_dc_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcpred_intra_dc_neon.S	2020-08-31 12:23:51.076728930 -0000
++++ b/libavcodec/arm/rpi_hevcpred_intra_dc_neon.S	2020-08-31 12:58:47.816817011 -0000
 @@ -0,0 +1,695 @@
 +/*
 + * Copyright (c) 2017 John Cox <jc@kynesim.co.uk> (for Raspberry Pi)
@@ -31081,7 +30907,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_dc_neon.S b/libavcodec/
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_filter_neon.S b/libavcodec/arm/rpi_hevcpred_intra_filter_neon.S
 --- a/libavcodec/arm/rpi_hevcpred_intra_filter_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcpred_intra_filter_neon.S	2020-08-31 12:23:51.076728930 -0000
++++ b/libavcodec/arm/rpi_hevcpred_intra_filter_neon.S	2020-08-31 12:58:47.816817011 -0000
 @@ -0,0 +1,872 @@
 +/*
 + * Copyright (c) 2018 John Cox <jc@kynesim.co.uk> (for Raspberry Pi)
@@ -31957,7 +31783,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_filter_neon.S b/libavco
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_hv_neon.S b/libavcodec/arm/rpi_hevcpred_intra_hv_neon.S
 --- a/libavcodec/arm/rpi_hevcpred_intra_hv_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcpred_intra_hv_neon.S	2020-08-31 12:23:51.076728930 -0000
++++ b/libavcodec/arm/rpi_hevcpred_intra_hv_neon.S	2020-08-31 12:58:47.816817011 -0000
 @@ -0,0 +1,911 @@
 +/*
 + * Copyright (c) 2018 John Cox <jc@kynesim.co.uk> (for Raspberry Pi)
@@ -32872,7 +32698,7 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_hv_neon.S b/libavcodec/
 +
 diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_planar_neon.S b/libavcodec/arm/rpi_hevcpred_intra_planar_neon.S
 --- a/libavcodec/arm/rpi_hevcpred_intra_planar_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/arm/rpi_hevcpred_intra_planar_neon.S	2020-08-31 12:23:51.080728931 -0000
++++ b/libavcodec/arm/rpi_hevcpred_intra_planar_neon.S	2020-08-31 12:58:47.820817011 -0000
 @@ -0,0 +1,1034 @@
 +/*
 + * Copyright (c) 2017 John Cox <jc@kynesim.co.uk> (for Raspberry Pi)
@@ -33910,16 +33736,8 @@ diff -upPr --minimal a/libavcodec/arm/rpi_hevcpred_intra_planar_neon.S b/libavco
 +endfunc
 diff -upPr --minimal a/libavcodec/avcodec.h b/libavcodec/avcodec.h
 --- a/libavcodec/avcodec.h	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/avcodec.h	2020-08-31 12:23:51.080728931 -0000
-@@ -1573,6 +1573,7 @@ typedef struct AVCodecContext {
- #define FF_BUG_MS               8192 ///< Work around various bugs in Microsoft's broken decoders.
- #define FF_BUG_TRUNCATED       16384
- #define FF_BUG_IEDGE           32768
-+#define FF_BUG_GMC_UNSUPPORTED (1<<30)
- 
-     /**
-      * strictly follow the standard (MPEG-4, ...).
-@@ -2237,7 +2238,13 @@ typedef struct AVCodecContext {
++++ b/libavcodec/avcodec.h	2020-08-31 12:58:47.824817011 -0000
+@@ -2237,7 +2237,13 @@ typedef struct AVCodecContext {
  #endif
  
      /**
@@ -33934,7 +33752,7 @@ diff -upPr --minimal a/libavcodec/avcodec.h b/libavcodec/avcodec.h
       * the end of the audio. I.e. this number of decoded samples must be
       * discarded by the caller from the end of the stream to get the original
       * audio without any trailing padding.
-@@ -3653,6 +3660,17 @@ int avcodec_encode_audio2(AVCodecContext
+@@ -3653,6 +3659,17 @@ int avcodec_encode_audio2(AVCodecContext
                            const AVFrame *frame, int *got_packet_ptr);
  
  /**
@@ -33954,8 +33772,8 @@ diff -upPr --minimal a/libavcodec/avcodec.h b/libavcodec/avcodec.h
   * Takes input raw video data from frame and writes the next output packet, if
 diff -upPr --minimal a/libavcodec/avcodec.h.orig b/libavcodec/avcodec.h.orig
 --- a/libavcodec/avcodec.h.orig	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/avcodec.h.orig	2020-08-31 12:23:51.004728927 -0000
-@@ -0,0 +1,4143 @@
++++ b/libavcodec/avcodec.h.orig	2020-06-17 18:39:23.000000000 -0000
+@@ -0,0 +1,4142 @@
 +/*
 + * copyright (c) 2001 Fabrice Bellard
 + *
@@ -35531,7 +35349,6 @@ diff -upPr --minimal a/libavcodec/avcodec.h.orig b/libavcodec/avcodec.h.orig
 +#define FF_BUG_MS               8192 ///< Work around various bugs in Microsoft's broken decoders.
 +#define FF_BUG_TRUNCATED       16384
 +#define FF_BUG_IEDGE           32768
-+#define FF_BUG_GMC_UNSUPPORTED (1<<30)
 +
 +    /**
 +     * strictly follow the standard (MPEG-4, ...).
@@ -38101,7 +37918,7 @@ diff -upPr --minimal a/libavcodec/avcodec.h.orig b/libavcodec/avcodec.h.orig
 +#endif /* AVCODEC_AVCODEC_H */
 diff -upPr --minimal a/libavcodec/cabac.h b/libavcodec/cabac.h
 --- a/libavcodec/cabac.h	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/cabac.h	2020-08-31 12:23:51.084728931 -0000
++++ b/libavcodec/cabac.h	2020-08-31 12:58:47.824817011 -0000
 @@ -43,7 +43,14 @@ extern const uint8_t ff_h264_cabac_table
  typedef struct CABACContext{
      int low;
@@ -38118,660 +37935,9 @@ diff -upPr --minimal a/libavcodec/cabac.h b/libavcodec/cabac.h
      const uint8_t *bytestream_start;
      const uint8_t *bytestream;
      const uint8_t *bytestream_end;
-diff -upPr --minimal a/libavcodec/dvdec.c b/libavcodec/dvdec.c
---- a/libavcodec/dvdec.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/dvdec.c	2020-08-31 12:23:50.968728926 -0000
-@@ -194,6 +194,12 @@ static av_cold int dvvideo_decode_init(A
-     s->idct_put[0] = s->idsp.idct_put;
-     s->idct_put[1] = ff_simple_idct248_put;
- 
-+    static const enum AVPixelFormat pix_fmts[] = {
-+       AV_PIX_FMT_YUV420P,
-+       AV_PIX_FMT_NONE
-+    };
-+    avctx->pix_fmt = ff_get_format(avctx, pix_fmts);
-+
-     return ff_dvvideo_init(avctx);
- }
- 
-diff -upPr --minimal a/libavcodec/dvdec.c.orig b/libavcodec/dvdec.c.orig
---- a/libavcodec/dvdec.c.orig	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/dvdec.c.orig	2020-06-17 18:39:23.000000000 -0000
-@@ -0,0 +1,631 @@
-+/*
-+ * DV decoder
-+ * Copyright (c) 2002 Fabrice Bellard
-+ * Copyright (c) 2004 Roman Shaposhnik
-+ *
-+ * 50 Mbps (DVCPRO50) support
-+ * Copyright (c) 2006 Daniel Maas <dmaas@maasdigital.com>
-+ *
-+ * 100 Mbps (DVCPRO HD) support
-+ * Initial code by Daniel Maas <dmaas@maasdigital.com> (funded by BBC R&D)
-+ * Final code by Roman Shaposhnik
-+ *
-+ * Many thanks to Dan Dennedy <dan@dennedy.org> for providing wealth
-+ * of DV technical info.
-+ *
-+ * This file is part of FFmpeg.
-+ *
-+ * FFmpeg is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU Lesser General Public
-+ * License as published by the Free Software Foundation; either
-+ * version 2.1 of the License, or (at your option) any later version.
-+ *
-+ * FFmpeg is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * Lesser General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU Lesser General Public
-+ * License along with FFmpeg; if not, write to the Free Software
-+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
-+ */
-+
-+/**
-+ * @file
-+ * DV decoder
-+ */
-+
-+#include "libavutil/avassert.h"
-+#include "libavutil/imgutils.h"
-+#include "libavutil/internal.h"
-+#include "libavutil/pixdesc.h"
-+
-+#include "avcodec.h"
-+#include "dv.h"
-+#include "dv_profile_internal.h"
-+#include "dvdata.h"
-+#include "get_bits.h"
-+#include "internal.h"
-+#include "put_bits.h"
-+#include "simple_idct.h"
-+#include "thread.h"
-+
-+typedef struct BlockInfo {
-+    const uint32_t *factor_table;
-+    const uint8_t *scan_table;
-+    uint8_t pos; /* position in block */
-+    void (*idct_put)(uint8_t *dest, ptrdiff_t stride, int16_t *block);
-+    uint8_t partial_bit_count;
-+    uint32_t partial_bit_buffer;
-+    int shift_offset;
-+} BlockInfo;
-+
-+static const int dv_iweight_bits = 14;
-+
-+static const uint16_t dv_iweight_88[64] = {
-+    32768, 16705, 16705, 17734, 17032, 17734, 18205, 18081,
-+    18081, 18205, 18725, 18562, 19195, 18562, 18725, 19266,
-+    19091, 19705, 19705, 19091, 19266, 21407, 19643, 20267,
-+    20228, 20267, 19643, 21407, 22725, 21826, 20853, 20806,
-+    20806, 20853, 21826, 22725, 23170, 23170, 21407, 21400,
-+    21407, 23170, 23170, 24598, 23786, 22018, 22018, 23786,
-+    24598, 25251, 24465, 22654, 24465, 25251, 25972, 25172,
-+    25172, 25972, 26722, 27969, 26722, 29692, 29692, 31521,
-+};
-+static const uint16_t dv_iweight_248[64] = {
-+    32768, 16384, 16705, 16705, 17734, 17734, 17734, 17734,
-+    18081, 18081, 18725, 18725, 21407, 21407, 19091, 19091,
-+    19195, 19195, 18205, 18205, 18725, 18725, 19705, 19705,
-+    20267, 20267, 21826, 21826, 23170, 23170, 20806, 20806,
-+    20267, 20267, 19266, 19266, 21407, 21407, 20853, 20853,
-+    21400, 21400, 23786, 23786, 24465, 24465, 22018, 22018,
-+    23170, 23170, 22725, 22725, 24598, 24598, 24465, 24465,
-+    25172, 25172, 27969, 27969, 25972, 25972, 29692, 29692
-+};
-+
-+/**
-+ * The "inverse" DV100 weights are actually just the spec weights (zig-zagged).
-+ */
-+static const uint16_t dv_iweight_1080_y[64] = {
-+    128,  16,  16,  17,  17,  17,  18,  18,
-+     18,  18,  18,  18,  19,  18,  18,  19,
-+     19,  19,  19,  19,  19,  42,  38,  40,
-+     40,  40,  38,  42,  44,  43,  41,  41,
-+     41,  41,  43,  44,  45,  45,  42,  42,
-+     42,  45,  45,  48,  46,  43,  43,  46,
-+     48,  49,  48,  44,  48,  49, 101,  98,
-+     98, 101, 104, 109, 104, 116, 116, 123,
-+};
-+static const uint16_t dv_iweight_1080_c[64] = {
-+    128,  16,  16,  17,  17,  17,  25,  25,
-+     25,  25,  26,  25,  26,  25,  26,  26,
-+     26,  27,  27,  26,  26,  42,  38,  40,
-+     40,  40,  38,  42,  44,  43,  41,  41,
-+     41,  41,  43,  44,  91,  91,  84,  84,
-+     84,  91,  91,  96,  93,  86,  86,  93,
-+     96, 197, 191, 177, 191, 197, 203, 197,
-+    197, 203, 209, 219, 209, 232, 232, 246,
-+};
-+static const uint16_t dv_iweight_720_y[64] = {
-+    128,  16,  16,  17,  17,  17,  18,  18,
-+     18,  18,  18,  18,  19,  18,  18,  19,
-+     19,  19,  19,  19,  19,  42,  38,  40,
-+     40,  40,  38,  42,  44,  43,  41,  41,
-+     41,  41,  43,  44,  68,  68,  63,  63,
-+     63,  68,  68,  96,  92,  86,  86,  92,
-+     96,  98,  96,  88,  96,  98, 202, 196,
-+    196, 202, 208, 218, 208, 232, 232, 246,
-+};
-+static const uint16_t dv_iweight_720_c[64] = {
-+    128,  24,  24,  26,  26,  26,  36,  36,
-+     36,  36,  36,  36,  38,  36,  36,  38,
-+     38,  38,  38,  38,  38,  84,  76,  80,
-+     80,  80,  76,  84,  88,  86,  82,  82,
-+     82,  82,  86,  88, 182, 182, 168, 168,
-+    168, 182, 182, 192, 186, 192, 172, 186,
-+    192, 394, 382, 354, 382, 394, 406, 394,
-+    394, 406, 418, 438, 418, 464, 464, 492,
-+};
-+
-+static void dv_init_weight_tables(DVVideoContext *ctx, const AVDVProfile *d)
-+{
-+    int j, i, c, s;
-+    uint32_t *factor1 = &ctx->idct_factor[0],
-+             *factor2 = &ctx->idct_factor[DV_PROFILE_IS_HD(d) ? 4096 : 2816];
-+
-+    if (DV_PROFILE_IS_HD(d)) {
-+        /* quantization quanta by QNO for DV100 */
-+        static const uint8_t dv100_qstep[16] = {
-+            1, /* QNO = 0 and 1 both have no quantization */
-+            1,
-+            2, 3, 4, 5, 6, 7, 8, 16, 18, 20, 22, 24, 28, 52
-+        };
-+        const uint16_t *iweight1, *iweight2;
-+
-+        if (d->height == 720) {
-+            iweight1 = &dv_iweight_720_y[0];
-+            iweight2 = &dv_iweight_720_c[0];
-+        } else {
-+            iweight1 = &dv_iweight_1080_y[0];
-+            iweight2 = &dv_iweight_1080_c[0];
-+        }
-+        for (c = 0; c < 4; c++) {
-+            for (s = 0; s < 16; s++) {
-+                for (i = 0; i < 64; i++) {
-+                    *factor1++ = (dv100_qstep[s] << (c + 9)) * iweight1[i];
-+                    *factor2++ = (dv100_qstep[s] << (c + 9)) * iweight2[i];
-+                }
-+            }
-+        }
-+    } else {
-+        static const uint8_t dv_quant_areas[4] = { 6, 21, 43, 64 };
-+        const uint16_t *iweight1 = &dv_iweight_88[0];
-+        for (j = 0; j < 2; j++, iweight1 = &dv_iweight_248[0]) {
-+            for (s = 0; s < 22; s++) {
-+                for (i = c = 0; c < 4; c++) {
-+                    for (; i < dv_quant_areas[c]; i++) {
-+                        *factor1   = iweight1[i] << (ff_dv_quant_shifts[s][c] + 1);
-+                        *factor2++ = (*factor1++) << 1;
-+                    }
-+                }
-+            }
-+        }
-+    }
-+}
-+
-+static av_cold int dvvideo_decode_init(AVCodecContext *avctx)
-+{
-+    DVVideoContext *s = avctx->priv_data;
-+    int i;
-+
-+    ff_idctdsp_init(&s->idsp, avctx);
-+
-+    for (i = 0; i < 64; i++)
-+        s->dv_zigzag[0][i] = s->idsp.idct_permutation[ff_zigzag_direct[i]];
-+
-+    if (avctx->lowres){
-+        for (i = 0; i < 64; i++){
-+            int j = ff_dv_zigzag248_direct[i];
-+            s->dv_zigzag[1][i] = s->idsp.idct_permutation[(j & 7) + (j & 8) * 4 + (j & 48) / 2];
-+        }
-+    }else
-+        memcpy(s->dv_zigzag[1], ff_dv_zigzag248_direct, sizeof(s->dv_zigzag[1]));
-+
-+    s->idct_put[0] = s->idsp.idct_put;
-+    s->idct_put[1] = ff_simple_idct248_put;
-+
-+    return ff_dvvideo_init(avctx);
-+}
-+
-+/* decode AC coefficients */
-+static void dv_decode_ac(GetBitContext *gb, BlockInfo *mb, int16_t *block)
-+{
-+    int last_index = gb->size_in_bits;
-+    const uint8_t  *scan_table   = mb->scan_table;
-+    const uint32_t *factor_table = mb->factor_table;
-+    int pos                      = mb->pos;
-+    int partial_bit_count        = mb->partial_bit_count;
-+    int level, run, vlc_len, index;
-+
-+    OPEN_READER_NOSIZE(re, gb);
-+    UPDATE_CACHE(re, gb);
-+
-+    /* if we must parse a partial VLC, we do it here */
-+    if (partial_bit_count > 0) {
-+        re_cache              = re_cache >> partial_bit_count |
-+                                mb->partial_bit_buffer;
-+        re_index             -= partial_bit_count;
-+        mb->partial_bit_count = 0;
-+    }
-+
-+    /* get the AC coefficients until last_index is reached */
-+    for (;;) {
-+        ff_dlog(NULL, "%2d: bits=%04"PRIx32" index=%u\n",
-+                pos, SHOW_UBITS(re, gb, 16), re_index);
-+        /* our own optimized GET_RL_VLC */
-+        index   = NEG_USR32(re_cache, TEX_VLC_BITS);
-+        vlc_len = ff_dv_rl_vlc[index].len;
-+        if (vlc_len < 0) {
-+            index = NEG_USR32((unsigned) re_cache << TEX_VLC_BITS, -vlc_len) +
-+                    ff_dv_rl_vlc[index].level;
-+            vlc_len = TEX_VLC_BITS - vlc_len;
-+        }
-+        level = ff_dv_rl_vlc[index].level;
-+        run   = ff_dv_rl_vlc[index].run;
-+
-+        /* gotta check if we're still within gb boundaries */
-+        if (re_index + vlc_len > last_index) {
-+            /* should be < 16 bits otherwise a codeword could have been parsed */
-+            mb->partial_bit_count  = last_index - re_index;
-+            mb->partial_bit_buffer = re_cache & ~(-1u >> mb->partial_bit_count);
-+            re_index               = last_index;
-+            break;
-+        }
-+        re_index += vlc_len;
-+
-+        ff_dlog(NULL, "run=%d level=%d\n", run, level);
-+        pos += run;
-+        if (pos >= 64)
-+            break;
-+
-+        level = (level * factor_table[pos] + (1 << (dv_iweight_bits - 1))) >>
-+                dv_iweight_bits;
-+        block[scan_table[pos]] = level;
-+
-+        UPDATE_CACHE(re, gb);
-+    }
-+    CLOSE_READER(re, gb);
-+    mb->pos = pos;
-+}
-+
-+static inline void bit_copy(PutBitContext *pb, GetBitContext *gb)
-+{
-+    int bits_left = get_bits_left(gb);
-+    while (bits_left >= MIN_CACHE_BITS) {
-+        put_bits(pb, MIN_CACHE_BITS, get_bits(gb, MIN_CACHE_BITS));
-+        bits_left -= MIN_CACHE_BITS;
-+    }
-+    if (bits_left > 0)
-+        put_bits(pb, bits_left, get_bits(gb, bits_left));
-+}
-+
-+static av_always_inline void put_block_8x4(int16_t *block, uint8_t *av_restrict p, int stride)
-+{
-+    int i, j;
-+
-+    for (i = 0; i < 4; i++) {
-+        for (j = 0; j < 8; j++)
-+            p[j] = av_clip_uint8(block[j]);
-+        block += 8;
-+        p += stride;
-+    }
-+}
-+
-+static void dv100_idct_put_last_row_field_chroma(DVVideoContext *s, uint8_t *data,
-+                                                 int stride, int16_t *blocks)
-+{
-+    s->idsp.idct(blocks + 0*64);
-+    s->idsp.idct(blocks + 1*64);
-+
-+    put_block_8x4(blocks+0*64,       data,              stride<<1);
-+    put_block_8x4(blocks+0*64 + 4*8, data + 8,          stride<<1);
-+    put_block_8x4(blocks+1*64,       data + stride,     stride<<1);
-+    put_block_8x4(blocks+1*64 + 4*8, data + 8 + stride, stride<<1);
-+}
-+
-+static void dv100_idct_put_last_row_field_luma(DVVideoContext *s, uint8_t *data,
-+                                               int stride, int16_t *blocks)
-+{
-+    s->idsp.idct(blocks + 0*64);
-+    s->idsp.idct(blocks + 1*64);
-+    s->idsp.idct(blocks + 2*64);
-+    s->idsp.idct(blocks + 3*64);
-+
-+    put_block_8x4(blocks+0*64,       data,               stride<<1);
-+    put_block_8x4(blocks+0*64 + 4*8, data + 16,          stride<<1);
-+    put_block_8x4(blocks+1*64,       data + 8,           stride<<1);
-+    put_block_8x4(blocks+1*64 + 4*8, data + 24,          stride<<1);
-+    put_block_8x4(blocks+2*64,       data + stride,      stride<<1);
-+    put_block_8x4(blocks+2*64 + 4*8, data + 16 + stride, stride<<1);
-+    put_block_8x4(blocks+3*64,       data + 8  + stride, stride<<1);
-+    put_block_8x4(blocks+3*64 + 4*8, data + 24 + stride, stride<<1);
-+}
-+
-+/* mb_x and mb_y are in units of 8 pixels */
-+static int dv_decode_video_segment(AVCodecContext *avctx, void *arg)
-+{
-+    DVVideoContext *s = avctx->priv_data;
-+    DVwork_chunk *work_chunk = arg;
-+    int quant, dc, dct_mode, class1, j;
-+    int mb_index, mb_x, mb_y, last_index;
-+    int y_stride, linesize;
-+    int16_t *block, *block1;
-+    int c_offset;
-+    uint8_t *y_ptr;
-+    const uint8_t *buf_ptr;
-+    PutBitContext pb, vs_pb;
-+    GetBitContext gb;
-+    BlockInfo mb_data[5 * DV_MAX_BPM], *mb, *mb1;
-+    LOCAL_ALIGNED_16(int16_t, sblock, [5 * DV_MAX_BPM], [64]);
-+    LOCAL_ALIGNED_16(uint8_t, mb_bit_buffer, [80     + AV_INPUT_BUFFER_PADDING_SIZE]); /* allow some slack */
-+    LOCAL_ALIGNED_16(uint8_t, vs_bit_buffer, [80 * 5 + AV_INPUT_BUFFER_PADDING_SIZE]); /* allow some slack */
-+    const int log2_blocksize = 3-s->avctx->lowres;
-+    int is_field_mode[5];
-+    int vs_bit_buffer_damaged = 0;
-+    int mb_bit_buffer_damaged[5] = {0};
-+    int retried = 0;
-+    int sta;
-+
-+    av_assert1((((int) mb_bit_buffer) & 7) == 0);
-+    av_assert1((((int) vs_bit_buffer) & 7) == 0);
-+
-+retry:
-+
-+    memset(sblock, 0, 5 * DV_MAX_BPM * sizeof(*sblock));
-+
-+    /* pass 1: read DC and AC coefficients in blocks */
-+    buf_ptr = &s->buf[work_chunk->buf_offset * 80];
-+    block1  = &sblock[0][0];
-+    mb1     = mb_data;
-+    init_put_bits(&vs_pb, vs_bit_buffer, 5 * 80);
-+    for (mb_index = 0; mb_index < 5; mb_index++, mb1 += s->sys->bpm, block1 += s->sys->bpm * 64) {
-+        /* skip header */
-+        quant    = buf_ptr[3] & 0x0f;
-+        if (avctx->error_concealment) {
-+            if ((buf_ptr[3] >> 4) == 0x0E)
-+                vs_bit_buffer_damaged = 1;
-+            if (!mb_index) {
-+                sta = buf_ptr[3] >> 4;
-+            } else if (sta != (buf_ptr[3] >> 4))
-+                vs_bit_buffer_damaged = 1;
-+        }
-+        buf_ptr += 4;
-+        init_put_bits(&pb, mb_bit_buffer, 80);
-+        mb    = mb1;
-+        block = block1;
-+        is_field_mode[mb_index] = 0;
-+        for (j = 0; j < s->sys->bpm; j++) {
-+            last_index = s->sys->block_sizes[j];
-+            init_get_bits(&gb, buf_ptr, last_index);
-+
-+            /* get the DC */
-+            dc       = get_sbits(&gb, 9);
-+            dct_mode = get_bits1(&gb);
-+            class1   = get_bits(&gb, 2);
-+            if (DV_PROFILE_IS_HD(s->sys)) {
-+                mb->idct_put     = s->idct_put[0];
-+                mb->scan_table   = s->dv_zigzag[0];
-+                mb->factor_table = &s->idct_factor[(j >= 4) * 4 * 16 * 64 +
-+                                                   class1       * 16 * 64 +
-+                                                   quant             * 64];
-+                is_field_mode[mb_index] |= !j && dct_mode;
-+            } else {
-+                mb->idct_put     = s->idct_put[dct_mode && log2_blocksize == 3];
-+                mb->scan_table   = s->dv_zigzag[dct_mode];
-+                mb->factor_table =
-+                    &s->idct_factor[(class1 == 3)               * 2 * 22 * 64 +
-+                                    dct_mode                        * 22 * 64 +
-+                                    (quant + ff_dv_quant_offset[class1]) * 64];
-+            }
-+            dc = dc * 4;
-+            /* convert to unsigned because 128 is not added in the
-+             * standard IDCT */
-+            dc                   += 1024;
-+            block[0]              = dc;
-+            buf_ptr              += last_index >> 3;
-+            mb->pos               = 0;
-+            mb->partial_bit_count = 0;
-+
-+            ff_dlog(avctx, "MB block: %d, %d ", mb_index, j);
-+            dv_decode_ac(&gb, mb, block);
-+
-+            /* write the remaining bits in a new buffer only if the
-+             * block is finished */
-+            if (mb->pos >= 64)
-+                bit_copy(&pb, &gb);
-+            if (mb->pos >= 64 && mb->pos < 127)
-+                vs_bit_buffer_damaged = mb_bit_buffer_damaged[mb_index] = 1;
-+
-+            block += 64;
-+            mb++;
-+        }
-+
-+        if (mb_bit_buffer_damaged[mb_index] > 0)
-+            continue;
-+
-+        /* pass 2: we can do it just after */
-+        ff_dlog(avctx, "***pass 2 size=%d MB#=%d\n", put_bits_count(&pb), mb_index);
-+        block = block1;
-+        mb    = mb1;
-+        init_get_bits(&gb, mb_bit_buffer, put_bits_count(&pb));
-+        put_bits32(&pb, 0); // padding must be zeroed
-+        flush_put_bits(&pb);
-+        for (j = 0; j < s->sys->bpm; j++, block += 64, mb++) {
-+            if (mb->pos < 64 && get_bits_left(&gb) > 0) {
-+                dv_decode_ac(&gb, mb, block);
-+                /* if still not finished, no need to parse other blocks */
-+                if (mb->pos < 64)
-+                    break;
-+                if (mb->pos < 127)
-+                    vs_bit_buffer_damaged = mb_bit_buffer_damaged[mb_index] = 1;
-+            }
-+        }
-+        /* all blocks are finished, so the extra bytes can be used at
-+         * the video segment level */
-+        if (j >= s->sys->bpm)
-+            bit_copy(&vs_pb, &gb);
-+    }
-+
-+    /* we need a pass over the whole video segment */
-+    ff_dlog(avctx, "***pass 3 size=%d\n", put_bits_count(&vs_pb));
-+    block = &sblock[0][0];
-+    mb    = mb_data;
-+    init_get_bits(&gb, vs_bit_buffer, put_bits_count(&vs_pb));
-+    put_bits32(&vs_pb, 0); // padding must be zeroed
-+    flush_put_bits(&vs_pb);
-+    for (mb_index = 0; mb_index < 5; mb_index++) {
-+        for (j = 0; j < s->sys->bpm; j++) {
-+            if (mb->pos < 64 && get_bits_left(&gb) > 0 && !vs_bit_buffer_damaged) {
-+                ff_dlog(avctx, "start %d:%d\n", mb_index, j);
-+                dv_decode_ac(&gb, mb, block);
-+            }
-+
-+            if (mb->pos >= 64 && mb->pos < 127) {
-+                av_log(avctx, AV_LOG_ERROR,
-+                       "AC EOB marker is absent pos=%d\n", mb->pos);
-+                vs_bit_buffer_damaged = 1;
-+            }
-+            block += 64;
-+            mb++;
-+        }
-+    }
-+    if (vs_bit_buffer_damaged && !retried) {
-+        av_log(avctx, AV_LOG_ERROR, "Concealing bitstream errors\n");
-+        retried = 1;
-+        goto retry;
-+    }
-+
-+    /* compute idct and place blocks */
-+    block = &sblock[0][0];
-+    mb    = mb_data;
-+    for (mb_index = 0; mb_index < 5; mb_index++) {
-+        dv_calculate_mb_xy(s, work_chunk, mb_index, &mb_x, &mb_y);
-+
-+        /* idct_put'ting luminance */
-+        if ((s->sys->pix_fmt == AV_PIX_FMT_YUV420P)                      ||
-+            (s->sys->pix_fmt == AV_PIX_FMT_YUV411P && mb_x >= (704 / 8)) ||
-+            (s->sys->height >= 720 && mb_y != 134)) {
-+            y_stride = (s->frame->linesize[0] <<
-+                        ((!is_field_mode[mb_index]) * log2_blocksize));
-+        } else {
-+            y_stride = (2 << log2_blocksize);
-+        }
-+        y_ptr    = s->frame->data[0] +
-+                   ((mb_y * s->frame->linesize[0] + mb_x) << log2_blocksize);
-+        if (mb_y == 134 && is_field_mode[mb_index]) {
-+            dv100_idct_put_last_row_field_luma(s, y_ptr, s->frame->linesize[0], block);
-+        } else {
-+            linesize = s->frame->linesize[0] << is_field_mode[mb_index];
-+            mb[0].idct_put(y_ptr, linesize, block + 0 * 64);
-+            if (s->sys->video_stype == 4) { /* SD 422 */
-+                mb[2].idct_put(y_ptr + (1 << log2_blocksize),            linesize, block + 2 * 64);
-+            } else {
-+                mb[1].idct_put(y_ptr + (1 << log2_blocksize),            linesize, block + 1 * 64);
-+                mb[2].idct_put(y_ptr                         + y_stride, linesize, block + 2 * 64);
-+                mb[3].idct_put(y_ptr + (1 << log2_blocksize) + y_stride, linesize, block + 3 * 64);
-+            }
-+        }
-+        mb    += 4;
-+        block += 4 * 64;
-+
-+        /* idct_put'ting chrominance */
-+        c_offset = (((mb_y >>  (s->sys->pix_fmt == AV_PIX_FMT_YUV420P)) * s->frame->linesize[1] +
-+                     (mb_x >> ((s->sys->pix_fmt == AV_PIX_FMT_YUV411P) ? 2 : 1))) << log2_blocksize);
-+        for (j = 2; j; j--) {
-+            uint8_t *c_ptr = s->frame->data[j] + c_offset;
-+            if (s->sys->pix_fmt == AV_PIX_FMT_YUV411P && mb_x >= (704 / 8)) {
-+                uint64_t aligned_pixels[64 / 8];
-+                uint8_t *pixels = (uint8_t *) aligned_pixels;
-+                uint8_t *c_ptr1, *ptr1;
-+                int x, y;
-+                mb->idct_put(pixels, 8, block);
-+                for (y = 0; y < (1 << log2_blocksize); y++, c_ptr += s->frame->linesize[j], pixels += 8) {
-+                    ptr1   = pixels + ((1 << (log2_blocksize))>>1);
-+                    c_ptr1 = c_ptr + (s->frame->linesize[j] << log2_blocksize);
-+                    for (x = 0; x < (1 << FFMAX(log2_blocksize - 1, 0)); x++) {
-+                        c_ptr[x]  = pixels[x];
-+                        c_ptr1[x] = ptr1[x];
-+                    }
-+                }
-+                block += 64;
-+                mb++;
-+            } else {
-+                y_stride = (mb_y == 134) ? (1 << log2_blocksize) :
-+                    s->frame->linesize[j] << ((!is_field_mode[mb_index]) * log2_blocksize);
-+                if (mb_y == 134 && is_field_mode[mb_index]) {
-+                    dv100_idct_put_last_row_field_chroma(s, c_ptr, s->frame->linesize[j], block);
-+                    mb += 2;
-+                    block += 2*64;
-+                } else {
-+                    linesize = s->frame->linesize[j] << is_field_mode[mb_index];
-+                    (mb++)->idct_put(c_ptr, linesize, block);
-+                    block += 64;
-+                    if (s->sys->bpm == 8) {
-+                        (mb++)->idct_put(c_ptr + y_stride, linesize, block);
-+                        block += 64;
-+                    }
-+                }
-+            }
-+        }
-+    }
-+    return 0;
-+}
-+
-+/* NOTE: exactly one frame must be given (120000 bytes for NTSC,
-+ * 144000 bytes for PAL - or twice those for 50Mbps) */
-+static int dvvideo_decode_frame(AVCodecContext *avctx, void *data,
-+                                int *got_frame, AVPacket *avpkt)
-+{
-+    uint8_t *buf = avpkt->data;
-+    int buf_size = avpkt->size;
-+    DVVideoContext *s = avctx->priv_data;
-+    ThreadFrame frame = { .f = data };
-+    const uint8_t *vsc_pack;
-+    int apt, is16_9, ret;
-+    const AVDVProfile *sys;
-+
-+    sys = ff_dv_frame_profile(avctx, s->sys, buf, buf_size);
-+    if (!sys || buf_size < sys->frame_size) {
-+        av_log(avctx, AV_LOG_ERROR, "could not find dv frame profile\n");
-+        return -1; /* NOTE: we only accept several full frames */
-+    }
-+
-+    if (sys != s->sys) {
-+        ret = ff_dv_init_dynamic_tables(s, sys);
-+        if (ret < 0) {
-+            av_log(avctx, AV_LOG_ERROR, "Error initializing the work tables.\n");
-+            return ret;
-+        }
-+        dv_init_weight_tables(s, sys);
-+        s->sys = sys;
-+    }
-+
-+    s->frame            = frame.f;
-+    frame.f->key_frame  = 1;
-+    frame.f->pict_type  = AV_PICTURE_TYPE_I;
-+    avctx->pix_fmt      = s->sys->pix_fmt;
-+    avctx->framerate    = av_inv_q(s->sys->time_base);
-+
-+    ret = ff_set_dimensions(avctx, s->sys->width, s->sys->height);
-+    if (ret < 0)
-+        return ret;
-+
-+    /* Determine the codec's sample_aspect ratio from the packet */
-+    vsc_pack = buf + 80 * 5 + 48 + 5;
-+    if (*vsc_pack == dv_video_control) {
-+        apt    = buf[4] & 0x07;
-+        is16_9 = (vsc_pack[2] & 0x07) == 0x02 ||
-+                 (!apt && (vsc_pack[2] & 0x07) == 0x07);
-+        ff_set_sar(avctx, s->sys->sar[is16_9]);
-+    }
-+
-+    if ((ret = ff_thread_get_buffer(avctx, &frame, 0)) < 0)
-+        return ret;
-+
-+    /* Determine the codec's field order from the packet */
-+    if ( *vsc_pack == dv_video_control ) {
-+        if (avctx->height == 720) {
-+            frame.f->interlaced_frame = 0;
-+            frame.f->top_field_first = 0;
-+        } else if (avctx->height == 1080) {
-+            frame.f->interlaced_frame = 1;
-+            frame.f->top_field_first = (vsc_pack[3] & 0x40) == 0x40;
-+        } else {
-+            frame.f->interlaced_frame = (vsc_pack[3] & 0x10) == 0x10;
-+            frame.f->top_field_first = !(vsc_pack[3] & 0x40);
-+        }
-+    }
-+
-+    s->buf = buf;
-+    avctx->execute(avctx, dv_decode_video_segment, s->work_chunks, NULL,
-+                   dv_work_pool_size(s->sys), sizeof(DVwork_chunk));
-+
-+    emms_c();
-+
-+    /* return image */
-+    *got_frame = 1;
-+
-+    return s->sys->frame_size;
-+}
-+
-+AVCodec ff_dvvideo_decoder = {
-+    .name           = "dvvideo",
-+    .long_name      = NULL_IF_CONFIG_SMALL("DV (Digital Video)"),
-+    .type           = AVMEDIA_TYPE_VIDEO,
-+    .id             = AV_CODEC_ID_DVVIDEO,
-+    .priv_data_size = sizeof(DVVideoContext),
-+    .init           = dvvideo_decode_init,
-+    .decode         = dvvideo_decode_frame,
-+    .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_FRAME_THREADS | AV_CODEC_CAP_SLICE_THREADS,
-+    .max_lowres     = 3,
-+};
 diff -upPr --minimal a/libavcodec/Makefile b/libavcodec/Makefile
 --- a/libavcodec/Makefile	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/Makefile	2020-08-31 12:34:42.692756304 -0000
++++ b/libavcodec/Makefile	2020-08-31 12:59:56.756819907 -0000
 @@ -6,6 +6,7 @@ HEADERS = ac3_parser.h
            avcodec.h                                                     \
            avdct.h                                                       \
@@ -40103,7 +39269,7 @@ diff -upPr --minimal a/libavcodec/Makefile.orig b/libavcodec/Makefile.orig
 +endif
 diff -upPr --minimal a/libavcodec/mmaldec.c b/libavcodec/mmaldec.c
 --- a/libavcodec/mmaldec.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/mmaldec.c	2020-08-31 12:23:51.084728931 -0000
++++ b/libavcodec/mmaldec.c	2020-08-31 12:58:47.824817011 -0000
 @@ -24,6 +24,9 @@
   * MMAL Video Decoder
   */
@@ -40122,30 +39288,9 @@ diff -upPr --minimal a/libavcodec/mmaldec.c b/libavcodec/mmaldec.c
  #include <stdatomic.h>
  
  #include "avcodec.h"
-diff -upPr --minimal a/libavcodec/mpeg4videodec.c b/libavcodec/mpeg4videodec.c
---- a/libavcodec/mpeg4videodec.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/mpeg4videodec.c	2020-08-31 12:23:51.008728928 -0000
-@@ -2662,6 +2662,9 @@ int ff_mpeg4_workaround_bugs(AVCodecCont
- 
-         if (ctx->divx_version >= 0)
-             s->workaround_bugs |= FF_BUG_HPEL_CHROMA;
-+
-+        if (ctx->num_sprite_warping_points > 1)
-+            s->workaround_bugs |= FF_BUG_GMC_UNSUPPORTED;
-     }
- 
-     if (s->workaround_bugs & FF_BUG_STD_QPEL) {
-@@ -2686,6 +2689,7 @@ int ff_mpeg4_workaround_bugs(AVCodecCont
-                s->workaround_bugs, ctx->lavc_build, ctx->xvid_build,
-                ctx->divx_version, ctx->divx_build, s->divx_packed ? "p" : "");
- 
-+    avctx->workaround_bugs = s->workaround_bugs;
-     if (CONFIG_MPEG4_DECODER && ctx->xvid_build >= 0 &&
-         s->codec_id == AV_CODEC_ID_MPEG4 &&
-         avctx->idct_algo == FF_IDCT_AUTO) {
 diff -upPr --minimal a/libavcodec/raw.c b/libavcodec/raw.c
 --- a/libavcodec/raw.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/raw.c	2020-08-31 12:23:51.084728931 -0000
++++ b/libavcodec/raw.c	2020-08-31 12:58:47.824817011 -0000
 @@ -289,6 +289,10 @@ const PixelFormatTag ff_raw_pix_fmt_tags
      { AV_PIX_FMT_YUV444P16LE, MKTAG('I', '4', 'F', 'L') },
      { AV_PIX_FMT_YUV444P16BE, MKTAG('I', '4', 'F', 'B') },
@@ -40159,7 +39304,7 @@ diff -upPr --minimal a/libavcodec/raw.c b/libavcodec/raw.c
      { AV_PIX_FMT_YUV444P, MKTAG('Y', 'V', '2', '4') }, /* YUV444P, swapped UV */
 diff -upPr --minimal a/libavcodec/rawenc.c b/libavcodec/rawenc.c
 --- a/libavcodec/rawenc.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/rawenc.c	2020-08-31 12:23:51.084728931 -0000
++++ b/libavcodec/rawenc.c	2020-08-31 12:58:47.824817011 -0000
 @@ -24,6 +24,7 @@
   * Raw Video Encoder
   */
@@ -40252,7 +39397,7 @@ diff -upPr --minimal a/libavcodec/rawenc.c b/libavcodec/rawenc.c
      if ((ret = av_image_copy_to_buffer(pkt->data, pkt->size,
 diff -upPr --minimal a/libavcodec/rpi_hevc_cabac.c b/libavcodec/rpi_hevc_cabac.c
 --- a/libavcodec/rpi_hevc_cabac.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_cabac.c	2020-08-31 12:23:51.088728931 -0000
++++ b/libavcodec/rpi_hevc_cabac.c	2020-08-31 12:58:47.828817011 -0000
 @@ -0,0 +1,2255 @@
 +/*
 + * HEVC CABAC decoding
@@ -42511,7 +41656,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_cabac.c b/libavcodec/rpi_hevc_cabac.c
 +#endif
 diff -upPr --minimal a/libavcodec/rpi_hevc_cabac_fns.h b/libavcodec/rpi_hevc_cabac_fns.h
 --- a/libavcodec/rpi_hevc_cabac_fns.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_cabac_fns.h	2020-08-31 12:23:51.088728931 -0000
++++ b/libavcodec/rpi_hevc_cabac_fns.h	2020-08-31 12:58:47.828817011 -0000
 @@ -0,0 +1,191 @@
 +#ifndef AVCODEC_RPI_HEVC_CABAC_FNS_H
 +#define AVCODEC_RPI_HEVC_CABAC_FNS_H
@@ -42706,7 +41851,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_cabac_fns.h b/libavcodec/rpi_hevc_cab
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_data.c b/libavcodec/rpi_hevc_data.c
 --- a/libavcodec/rpi_hevc_data.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_data.c	2020-08-31 12:23:51.088728931 -0000
++++ b/libavcodec/rpi_hevc_data.c	2020-08-31 12:58:47.828817011 -0000
 @@ -0,0 +1,75 @@
 +/*
 + * HEVC shared tables
@@ -42785,7 +41930,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_data.c b/libavcodec/rpi_hevc_data.c
 +};
 diff -upPr --minimal a/libavcodec/rpi_hevc_data.h b/libavcodec/rpi_hevc_data.h
 --- a/libavcodec/rpi_hevc_data.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_data.h	2020-08-31 12:23:51.088728931 -0000
++++ b/libavcodec/rpi_hevc_data.h	2020-08-31 12:58:47.828817011 -0000
 @@ -0,0 +1,31 @@
 +/*
 + * HEVC shared data tables
@@ -42820,7 +41965,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_data.h b/libavcodec/rpi_hevc_data.h
 +#endif /* AVCODEC_RPI_HEVC_DATA_H */
 diff -upPr --minimal a/libavcodec/rpi_hevcdec.c b/libavcodec/rpi_hevcdec.c
 --- a/libavcodec/rpi_hevcdec.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevcdec.c	2020-08-31 12:23:51.168728934 -0000
++++ b/libavcodec/rpi_hevcdec.c	2020-08-31 12:58:47.932817016 -0000
 @@ -0,0 +1,6019 @@
 +/*
 + * HEVC video Decoder
@@ -48843,7 +47988,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevcdec.c b/libavcodec/rpi_hevcdec.c
 +
 diff -upPr --minimal a/libavcodec/rpi_hevcdec.h b/libavcodec/rpi_hevcdec.h
 --- a/libavcodec/rpi_hevcdec.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevcdec.h	2020-08-31 12:23:51.124728932 -0000
++++ b/libavcodec/rpi_hevcdec.h	2020-08-31 12:58:47.884817014 -0000
 @@ -0,0 +1,1087 @@
 +/*
 + * HEVC video decoder
@@ -49934,7 +49079,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevcdec.h b/libavcodec/rpi_hevcdec.h
 +#endif /* AVCODEC_RPI_HEVCDEC_H */
 diff -upPr --minimal a/libavcodec/rpi_hevcdsp.c b/libavcodec/rpi_hevcdsp.c
 --- a/libavcodec/rpi_hevcdsp.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevcdsp.c	2020-08-31 12:23:51.124728932 -0000
++++ b/libavcodec/rpi_hevcdsp.c	2020-08-31 12:58:47.888817014 -0000
 @@ -0,0 +1,450 @@
 +/*
 + * HEVC video decoder
@@ -50388,7 +49533,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevcdsp.c b/libavcodec/rpi_hevcdsp.c
 +}
 diff -upPr --minimal a/libavcodec/rpi_hevcdsp.h b/libavcodec/rpi_hevcdsp.h
 --- a/libavcodec/rpi_hevcdsp.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevcdsp.h	2020-08-31 12:23:51.124728932 -0000
++++ b/libavcodec/rpi_hevcdsp.h	2020-08-31 12:58:47.888817014 -0000
 @@ -0,0 +1,177 @@
 +/*
 + * HEVC video decoder
@@ -50569,7 +49714,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevcdsp.h b/libavcodec/rpi_hevcdsp.h
 +#endif /* AVCODEC_RPI_HEVCDSP_H */
 diff -upPr --minimal a/libavcodec/rpi_hevcdsp_template.c b/libavcodec/rpi_hevcdsp_template.c
 --- a/libavcodec/rpi_hevcdsp_template.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevcdsp_template.c	2020-08-31 12:23:51.128728933 -0000
++++ b/libavcodec/rpi_hevcdsp_template.c	2020-08-31 12:58:47.896817014 -0000
 @@ -0,0 +1,2278 @@
 +/*
 + * HEVC video decoder
@@ -52851,7 +51996,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevcdsp_template.c b/libavcodec/rpi_hevcds
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_filter.c b/libavcodec/rpi_hevc_filter.c
 --- a/libavcodec/rpi_hevc_filter.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_filter.c	2020-08-31 12:23:51.164728934 -0000
++++ b/libavcodec/rpi_hevc_filter.c	2020-08-31 12:58:47.928817016 -0000
 @@ -0,0 +1,1206 @@
 +/*
 + * HEVC video decoder
@@ -54061,7 +53206,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_filter.c b/libavcodec/rpi_hevc_filter
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_mv.h b/libavcodec/rpi_hevc_mv.h
 --- a/libavcodec/rpi_hevc_mv.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_mv.h	2020-08-31 12:23:51.092728931 -0000
++++ b/libavcodec/rpi_hevc_mv.h	2020-08-31 12:58:47.832817011 -0000
 @@ -0,0 +1,71 @@
 +#ifndef AVCODEC_RPI_HEVC_MV_H
 +#define AVCODEC_RPI_HEVC_MV_H
@@ -54136,7 +53281,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_mv.h b/libavcodec/rpi_hevc_mv.h
 +#endif // AVCODEC_RPI_HEVC_MV_H
 diff -upPr --minimal a/libavcodec/rpi_hevc_mvs.c b/libavcodec/rpi_hevc_mvs.c
 --- a/libavcodec/rpi_hevc_mvs.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_mvs.c	2020-08-31 12:23:51.092728931 -0000
++++ b/libavcodec/rpi_hevc_mvs.c	2020-08-31 12:58:47.832817011 -0000
 @@ -0,0 +1,486 @@
 +/*
 + * HEVC video decoder
@@ -54626,7 +53771,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_mvs.c b/libavcodec/rpi_hevc_mvs.c
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_parse.c b/libavcodec/rpi_hevc_parse.c
 --- a/libavcodec/rpi_hevc_parse.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_parse.c	2020-08-31 12:23:51.092728931 -0000
++++ b/libavcodec/rpi_hevc_parse.c	2020-08-31 12:58:47.836817012 -0000
 @@ -0,0 +1,142 @@
 +/*
 + * This file is part of FFmpeg.
@@ -54772,7 +53917,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_parse.c b/libavcodec/rpi_hevc_parse.c
 +}
 diff -upPr --minimal a/libavcodec/rpi_hevc_parse.h b/libavcodec/rpi_hevc_parse.h
 --- a/libavcodec/rpi_hevc_parse.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_parse.h	2020-08-31 12:23:51.092728931 -0000
++++ b/libavcodec/rpi_hevc_parse.h	2020-08-31 12:58:47.836817012 -0000
 @@ -0,0 +1,36 @@
 +/*
 + * This file is part of FFmpeg.
@@ -54812,7 +53957,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_parse.h b/libavcodec/rpi_hevc_parse.h
 +#endif /* AVCODEC_RPI_HEVC_PARSE_H */
 diff -upPr --minimal a/libavcodec/rpi_hevcpred.c b/libavcodec/rpi_hevcpred.c
 --- a/libavcodec/rpi_hevcpred.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevcpred.c	2020-08-31 12:23:51.132728933 -0000
++++ b/libavcodec/rpi_hevcpred.c	2020-08-31 12:58:47.896817014 -0000
 @@ -0,0 +1,166 @@
 +/*
 + * HEVC video Decoder
@@ -54982,7 +54127,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevcpred.c b/libavcodec/rpi_hevcpred.c
 +}
 diff -upPr --minimal a/libavcodec/rpi_hevcpred.h b/libavcodec/rpi_hevcpred.h
 --- a/libavcodec/rpi_hevcpred.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevcpred.h	2020-08-31 12:23:51.132728933 -0000
++++ b/libavcodec/rpi_hevcpred.h	2020-08-31 12:58:47.896817014 -0000
 @@ -0,0 +1,121 @@
 +/*
 + * HEVC video Decoder
@@ -55107,7 +54252,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevcpred.h b/libavcodec/rpi_hevcpred.h
 +#endif /* AVCODEC_RPI_HEVCPRED_H */
 diff -upPr --minimal a/libavcodec/rpi_hevcpred_template.c b/libavcodec/rpi_hevcpred_template.c
 --- a/libavcodec/rpi_hevcpred_template.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevcpred_template.c	2020-08-31 12:23:51.136728933 -0000
++++ b/libavcodec/rpi_hevcpred_template.c	2020-08-31 12:58:47.900817014 -0000
 @@ -0,0 +1,1522 @@
 +/*
 + * HEVC video decoder
@@ -56633,7 +55778,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevcpred_template.c b/libavcodec/rpi_hevcp
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_ps.c b/libavcodec/rpi_hevc_ps.c
 --- a/libavcodec/rpi_hevc_ps.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_ps.c	2020-08-31 12:23:51.096728931 -0000
++++ b/libavcodec/rpi_hevc_ps.c	2020-08-31 12:58:47.840817012 -0000
 @@ -0,0 +1,1936 @@
 +/*
 + * HEVC Parameter Set decoding
@@ -58573,7 +57718,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_ps.c b/libavcodec/rpi_hevc_ps.c
 +}
 diff -upPr --minimal a/libavcodec/rpi_hevc_ps.h b/libavcodec/rpi_hevc_ps.h
 --- a/libavcodec/rpi_hevc_ps.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_ps.h	2020-08-31 12:23:51.096728931 -0000
++++ b/libavcodec/rpi_hevc_ps.h	2020-08-31 12:58:47.840817012 -0000
 @@ -0,0 +1,447 @@
 +/*
 + * HEVC parameter set parsing
@@ -59024,7 +58169,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_ps.h b/libavcodec/rpi_hevc_ps.h
 +#endif /* AVCODEC_RPI_HEVC_PS_H */
 diff -upPr --minimal a/libavcodec/rpi_hevc_refs.c b/libavcodec/rpi_hevc_refs.c
 --- a/libavcodec/rpi_hevc_refs.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_refs.c	2020-08-31 12:23:51.096728931 -0000
++++ b/libavcodec/rpi_hevc_refs.c	2020-08-31 12:58:47.844817012 -0000
 @@ -0,0 +1,485 @@
 +/*
 + * HEVC video decoder
@@ -59513,7 +58658,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_refs.c b/libavcodec/rpi_hevc_refs.c
 +}
 diff -upPr --minimal a/libavcodec/rpi_hevc_sei.c b/libavcodec/rpi_hevc_sei.c
 --- a/libavcodec/rpi_hevc_sei.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_sei.c	2020-08-31 12:23:51.100728931 -0000
++++ b/libavcodec/rpi_hevc_sei.c	2020-08-31 12:58:47.844817012 -0000
 @@ -0,0 +1,368 @@
 +/*
 + * HEVC Supplementary Enhancement Information messages
@@ -59885,7 +59030,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_sei.c b/libavcodec/rpi_hevc_sei.c
 +}
 diff -upPr --minimal a/libavcodec/rpi_hevc_sei.h b/libavcodec/rpi_hevc_sei.h
 --- a/libavcodec/rpi_hevc_sei.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_sei.h	2020-08-31 12:23:51.100728931 -0000
++++ b/libavcodec/rpi_hevc_sei.h	2020-08-31 12:58:47.844817012 -0000
 @@ -0,0 +1,135 @@
 +/*
 + * HEVC Supplementary Enhancement Information messages
@@ -60024,7 +59169,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_sei.h b/libavcodec/rpi_hevc_sei.h
 +#endif /* AVCODEC_RPI_HEVC_SEI_H */
 diff -upPr --minimal a/libavcodec/rpi_hevc_shader.c b/libavcodec/rpi_hevc_shader.c
 --- a/libavcodec/rpi_hevc_shader.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_shader.c	2020-08-31 12:23:51.104728932 -0000
++++ b/libavcodec/rpi_hevc_shader.c	2020-08-31 12:58:47.848817012 -0000
 @@ -0,0 +1,1537 @@
 +#include "rpi_hevc_shader.h"
 +
@@ -61565,7 +60710,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_shader.c b/libavcodec/rpi_hevc_shader
 +#endif
 diff -upPr --minimal a/libavcodec/rpi_hevc_shader_cmd.h b/libavcodec/rpi_hevc_shader_cmd.h
 --- a/libavcodec/rpi_hevc_shader_cmd.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_shader_cmd.h	2020-08-31 12:23:51.108728932 -0000
++++ b/libavcodec/rpi_hevc_shader_cmd.h	2020-08-31 12:58:47.856817013 -0000
 @@ -0,0 +1,128 @@
 +#ifndef RPI_SHADER_CMD_H
 +#define RPI_SHADER_CMD_H
@@ -61697,7 +60842,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_shader_cmd.h b/libavcodec/rpi_hevc_sh
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_shader.h b/libavcodec/rpi_hevc_shader.h
 --- a/libavcodec/rpi_hevc_shader.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_shader.h	2020-08-31 12:23:51.104728932 -0000
++++ b/libavcodec/rpi_hevc_shader.h	2020-08-31 12:58:47.848817012 -0000
 @@ -0,0 +1,63 @@
 +#ifndef rpi_hevc_shader_H
 +#define rpi_hevc_shader_H
@@ -61764,7 +60909,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_shader.h b/libavcodec/rpi_hevc_shader
 +#endif
 diff -upPr --minimal a/libavcodec/rpi_hevc_shader.qasm b/libavcodec/rpi_hevc_shader.qasm
 --- a/libavcodec/rpi_hevc_shader.qasm	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_shader.qasm	2020-08-31 12:23:51.108728932 -0000
++++ b/libavcodec/rpi_hevc_shader.qasm	2020-08-31 12:58:47.856817013 -0000
 @@ -0,0 +1,1821 @@
 +# Inter pred asm
 +#
@@ -63589,7 +62734,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_shader.qasm b/libavcodec/rpi_hevc_sha
 +# Do not add code here because mc_end must appear after all other code.
 diff -upPr --minimal a/libavcodec/rpi_hevc_shader_template.c b/libavcodec/rpi_hevc_shader_template.c
 --- a/libavcodec/rpi_hevc_shader_template.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_shader_template.c	2020-08-31 12:23:51.108728932 -0000
++++ b/libavcodec/rpi_hevc_shader_template.c	2020-08-31 12:58:47.856817013 -0000
 @@ -0,0 +1,61 @@
 +#include "hevc.h"
 +#include "rpi_hevcdec.h"
@@ -63654,7 +62799,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_shader_template.c b/libavcodec/rpi_he
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_shader_template_fn.h b/libavcodec/rpi_hevc_shader_template_fn.h
 --- a/libavcodec/rpi_hevc_shader_template_fn.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_shader_template_fn.h	2020-08-31 12:23:51.108728932 -0000
++++ b/libavcodec/rpi_hevc_shader_template_fn.h	2020-08-31 12:58:47.856817013 -0000
 @@ -0,0 +1,475 @@
 +#define STRCAT(x,y) x##y
 +
@@ -64133,7 +63278,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_shader_template_fn.h b/libavcodec/rpi
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_shader_template.h b/libavcodec/rpi_hevc_shader_template.h
 --- a/libavcodec/rpi_hevc_shader_template.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_shader_template.h	2020-08-31 12:23:51.108728932 -0000
++++ b/libavcodec/rpi_hevc_shader_template.h	2020-08-31 12:58:47.856817013 -0000
 @@ -0,0 +1,22 @@
 +#ifndef LIBAVCODEC_RPI_SHADER_TEMPLATE_H
 +#define LIBAVCODEC_RPI_SHADER_TEMPLATE_H
@@ -64159,7 +63304,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_shader_template.h b/libavcodec/rpi_he
 +
 diff -upPr --minimal a/libavcodec/rpi_hevc_transform10.h b/libavcodec/rpi_hevc_transform10.h
 --- a/libavcodec/rpi_hevc_transform10.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_transform10.h	2020-08-31 12:23:51.112728932 -0000
++++ b/libavcodec/rpi_hevc_transform10.h	2020-08-31 12:58:47.860817013 -0000
 @@ -0,0 +1,94 @@
 +static const unsigned char rpi_hevc_transform10 [] = {
 +0xa9,  0x03,  0x3e,  0x40,  0x4f,  0x40,  0x03,  0xb0,   // 0000
@@ -64257,7 +63402,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_transform10.h b/libavcodec/rpi_hevc_t
 +};
 diff -upPr --minimal a/libavcodec/rpi_hevc_transform8.h b/libavcodec/rpi_hevc_transform8.h
 --- a/libavcodec/rpi_hevc_transform8.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_transform8.h	2020-08-31 12:23:51.112728932 -0000
++++ b/libavcodec/rpi_hevc_transform8.h	2020-08-31 12:58:47.860817013 -0000
 @@ -0,0 +1,94 @@
 +static const unsigned char rpi_hevc_transform8 [] = {
 +0xa9,  0x03,  0x3e,  0x40,  0x4f,  0x40,  0x03,  0xb0,   // 0000
@@ -64355,7 +63500,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_transform8.h b/libavcodec/rpi_hevc_tr
 +};
 diff -upPr --minimal a/libavcodec/rpi_hevc_transform.s b/libavcodec/rpi_hevc_transform.s
 --- a/libavcodec/rpi_hevc_transform.s	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_hevc_transform.s	2020-08-31 12:23:51.108728932 -0000
++++ b/libavcodec/rpi_hevc_transform.s	2020-08-31 12:58:47.860817013 -0000
 @@ -0,0 +1,444 @@
 +# ******************************************************************************
 +# Argon Design Ltd.
@@ -64803,7 +63948,7 @@ diff -upPr --minimal a/libavcodec/rpi_hevc_transform.s b/libavcodec/rpi_hevc_tra
 +
 diff -upPr --minimal a/libavcodec/rpi_mailbox.c b/libavcodec/rpi_mailbox.c
 --- a/libavcodec/rpi_mailbox.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_mailbox.c	2020-08-31 12:23:51.136728933 -0000
++++ b/libavcodec/rpi_mailbox.c	2020-08-31 12:58:47.900817014 -0000
 @@ -0,0 +1,107 @@
 +/*
 +Copyright (c) 2012, Broadcom Europe Ltd.
@@ -64914,7 +64059,7 @@ diff -upPr --minimal a/libavcodec/rpi_mailbox.c b/libavcodec/rpi_mailbox.c
 +
 diff -upPr --minimal a/libavcodec/rpi_mailbox.h b/libavcodec/rpi_mailbox.h
 --- a/libavcodec/rpi_mailbox.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_mailbox.h	2020-08-31 12:23:51.136728933 -0000
++++ b/libavcodec/rpi_mailbox.h	2020-08-31 12:58:47.900817014 -0000
 @@ -0,0 +1,55 @@
 +#ifndef RPI_MAILBOX_H
 +#define RPI_MAILBOX_H
@@ -64973,7 +64118,7 @@ diff -upPr --minimal a/libavcodec/rpi_mailbox.h b/libavcodec/rpi_mailbox.h
 +#endif
 diff -upPr --minimal a/libavcodec/rpi_qpu.c b/libavcodec/rpi_qpu.c
 --- a/libavcodec/rpi_qpu.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_qpu.c	2020-08-31 12:23:51.136728933 -0000
++++ b/libavcodec/rpi_qpu.c	2020-08-31 12:58:47.900817014 -0000
 @@ -0,0 +1,957 @@
 +#include <stdio.h>
 +#include <stdlib.h>
@@ -65934,7 +65079,7 @@ diff -upPr --minimal a/libavcodec/rpi_qpu.c b/libavcodec/rpi_qpu.c
 +
 diff -upPr --minimal a/libavcodec/rpi_qpu.h b/libavcodec/rpi_qpu.h
 --- a/libavcodec/rpi_qpu.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_qpu.h	2020-08-31 12:23:51.140728933 -0000
++++ b/libavcodec/rpi_qpu.h	2020-08-31 12:58:47.900817014 -0000
 @@ -0,0 +1,229 @@
 +#ifndef RPI_QPU_H
 +#define RPI_QPU_H
@@ -66167,7 +65312,7 @@ diff -upPr --minimal a/libavcodec/rpi_qpu.h b/libavcodec/rpi_qpu.h
 +#endif
 diff -upPr --minimal a/libavcodec/rpi_zc.c b/libavcodec/rpi_zc.c
 --- a/libavcodec/rpi_zc.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_zc.c	2020-08-31 12:23:51.140728933 -0000
++++ b/libavcodec/rpi_zc.c	2020-08-31 12:58:47.904817015 -0000
 @@ -0,0 +1,741 @@
 +#include "libavcodec/avcodec.h"
 +#include "rpi_qpu.h"
@@ -66912,7 +66057,7 @@ diff -upPr --minimal a/libavcodec/rpi_zc.c b/libavcodec/rpi_zc.c
 +
 diff -upPr --minimal a/libavcodec/rpi_zc.h b/libavcodec/rpi_zc.h
 --- a/libavcodec/rpi_zc.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavcodec/rpi_zc.h	2020-08-31 12:23:51.140728933 -0000
++++ b/libavcodec/rpi_zc.h	2020-08-31 12:58:47.904817015 -0000
 @@ -0,0 +1,105 @@
 +#ifndef LIBAVCODEC_RPI_ZC_H
 +#define LIBAVCODEC_RPI_ZC_H
@@ -67019,25 +66164,9 @@ diff -upPr --minimal a/libavcodec/rpi_zc.h b/libavcodec/rpi_zc.h
 +
 +#endif
 +
-diff -upPr --minimal a/libavcodec/rv34.c b/libavcodec/rv34.c
---- a/libavcodec/rv34.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavcodec/rv34.c	2020-08-31 12:23:50.972728926 -0000
-@@ -1499,7 +1499,11 @@ av_cold int ff_rv34_decode_init(AVCodecC
-     ff_mpv_decode_init(s, avctx);
-     s->out_format = FMT_H263;
- 
--    avctx->pix_fmt = AV_PIX_FMT_YUV420P;
-+    static const enum AVPixelFormat pix_fmts[] = {
-+       AV_PIX_FMT_YUV420P,
-+       AV_PIX_FMT_NONE
-+    };
-+    avctx->pix_fmt = ff_get_format(avctx, pix_fmts);
-     avctx->has_b_frames = 1;
-     s->low_delay = 0;
- 
 diff -upPr --minimal a/libavfilter/allfilters.c b/libavfilter/allfilters.c
 --- a/libavfilter/allfilters.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavfilter/allfilters.c	2020-08-31 12:23:51.140728933 -0000
++++ b/libavfilter/allfilters.c	2020-08-31 12:58:47.904817015 -0000
 @@ -415,6 +415,7 @@ extern AVFilter ff_vf_transpose_vaapi;
  extern AVFilter ff_vf_trim;
  extern AVFilter ff_vf_unpremultiply;
@@ -67623,7 +66752,7 @@ diff -upPr --minimal a/libavfilter/allfilters.c.orig b/libavfilter/allfilters.c.
 +#endif
 diff -upPr --minimal a/libavfilter/avfiltergraph.c b/libavfilter/avfiltergraph.c
 --- a/libavfilter/avfiltergraph.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavfilter/avfiltergraph.c	2020-08-31 12:23:51.144728933 -0000
++++ b/libavfilter/avfiltergraph.c	2020-08-31 12:58:47.904817015 -0000
 @@ -32,6 +32,9 @@
  #include "libavutil/internal.h"
  #include "libavutil/opt.h"
@@ -69219,7 +68348,7 @@ diff -upPr --minimal a/libavfilter/avfiltergraph.c.orig b/libavfilter/avfiltergr
 +}
 diff -upPr --minimal a/libavfilter/buffersrc.c b/libavfilter/buffersrc.c
 --- a/libavfilter/buffersrc.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavfilter/buffersrc.c	2020-08-31 12:23:51.144728933 -0000
++++ b/libavfilter/buffersrc.c	2020-08-31 12:58:47.904817015 -0000
 @@ -210,7 +210,7 @@ static int av_buffersrc_add_frame_intern
  
          switch (ctx->outputs[0]->type) {
@@ -69734,7 +68863,7 @@ diff -upPr --minimal a/libavfilter/buffersrc.c.orig b/libavfilter/buffersrc.c.or
 +};
 diff -upPr --minimal a/libavfilter/Makefile b/libavfilter/Makefile
 --- a/libavfilter/Makefile	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavfilter/Makefile	2020-08-31 12:23:51.140728933 -0000
++++ b/libavfilter/Makefile	2020-08-31 12:58:47.904817015 -0000
 @@ -434,6 +434,7 @@ OBJS-$(CONFIG_TRANSPOSE_OPENCL_FILTER)
  OBJS-$(CONFIG_TRANSPOSE_VAAPI_FILTER)        += vf_transpose_vaapi.o vaapi_vpp.o
  OBJS-$(CONFIG_TRIM_FILTER)                   += trim.o
@@ -70292,7 +69421,7 @@ diff -upPr --minimal a/libavfilter/Makefile.orig b/libavfilter/Makefile.orig
 +	$(M)$(SRC_PATH)/tools/cl2c $< $@
 diff -upPr --minimal a/libavfilter/vf_unsand.c b/libavfilter/vf_unsand.c
 --- a/libavfilter/vf_unsand.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavfilter/vf_unsand.c	2020-08-31 12:23:51.144728933 -0000
++++ b/libavfilter/vf_unsand.c	2020-08-31 12:58:47.908817015 -0000
 @@ -0,0 +1,232 @@
 +/*
 + * Copyright (c) 2007 Bobby Bingham
@@ -70528,7 +69657,7 @@ diff -upPr --minimal a/libavfilter/vf_unsand.c b/libavfilter/vf_unsand.c
 +
 diff -upPr --minimal a/libavformat/utils.c b/libavformat/utils.c
 --- a/libavformat/utils.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavformat/utils.c	2020-08-31 12:23:51.152728934 -0000
++++ b/libavformat/utils.c	2020-08-31 12:58:47.912817015 -0000
 @@ -3044,6 +3044,40 @@ static int has_codec_parameters(AVStream
      return 1;
  }
@@ -76483,7 +75612,7 @@ diff -upPr --minimal a/libavformat/utils.c.orig b/libavformat/utils.c.orig
 +}
 diff -upPr --minimal a/libavutil/arm/Makefile b/libavutil/arm/Makefile
 --- a/libavutil/arm/Makefile	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavutil/arm/Makefile	2020-08-31 12:23:51.152728934 -0000
++++ b/libavutil/arm/Makefile	2020-08-31 12:58:47.912817015 -0000
 @@ -6,3 +6,4 @@ VFP-OBJS += arm/float_dsp_init_vfp.o
  
  NEON-OBJS += arm/float_dsp_init_neon.o                                  \
@@ -76491,7 +75620,7 @@ diff -upPr --minimal a/libavutil/arm/Makefile b/libavutil/arm/Makefile
 +             arm/rpi_sand_neon.o                                        \
 diff -upPr --minimal a/libavutil/arm/rpi_sand_neon.S b/libavutil/arm/rpi_sand_neon.S
 --- a/libavutil/arm/rpi_sand_neon.S	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavutil/arm/rpi_sand_neon.S	2020-08-31 12:23:51.152728934 -0000
++++ b/libavutil/arm/rpi_sand_neon.S	2020-08-31 12:58:47.912817015 -0000
 @@ -0,0 +1,40 @@
 +#include "libavutil/arm/asm.S"
 +
@@ -76535,7 +75664,7 @@ diff -upPr --minimal a/libavutil/arm/rpi_sand_neon.S b/libavutil/arm/rpi_sand_ne
 +
 diff -upPr --minimal a/libavutil/buffer.c b/libavutil/buffer.c
 --- a/libavutil/buffer.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavutil/buffer.c	2020-08-31 12:23:51.152728934 -0000
++++ b/libavutil/buffer.c	2020-08-31 12:58:47.912817015 -0000
 @@ -365,3 +365,9 @@ void *av_buffer_pool_buffer_get_opaque(A
      av_assert0(buf);
      return buf->opaque;
@@ -76919,7 +76048,7 @@ diff -upPr --minimal a/libavutil/buffer.c.orig b/libavutil/buffer.c.orig
 +}
 diff -upPr --minimal a/libavutil/buffer.h b/libavutil/buffer.h
 --- a/libavutil/buffer.h	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavutil/buffer.h	2020-08-31 12:23:51.152728934 -0000
++++ b/libavutil/buffer.h	2020-08-31 12:58:47.912817015 -0000
 @@ -285,6 +285,9 @@ void av_buffer_pool_uninit(AVBufferPool
   */
  AVBufferRef *av_buffer_pool_get(AVBufferPool *pool);
@@ -77241,7 +76370,7 @@ diff -upPr --minimal a/libavutil/buffer.h.orig b/libavutil/buffer.h.orig
 +#endif /* AVUTIL_BUFFER_H */
 diff -upPr --minimal a/libavutil/frame.c b/libavutil/frame.c
 --- a/libavutil/frame.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavutil/frame.c	2020-08-31 12:36:15.140760187 -0000
++++ b/libavutil/frame.c	2020-08-31 12:59:21.860818441 -0000
 @@ -16,6 +16,8 @@
   * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
   */
@@ -78236,7 +77365,7 @@ diff -upPr --minimal a/libavutil/frame.c.orig b/libavutil/frame.c.orig
 +}
 diff -upPr --minimal a/libavutil/frame.h b/libavutil/frame.h
 --- a/libavutil/frame.h	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavutil/frame.h	2020-08-31 12:23:51.152728934 -0000
++++ b/libavutil/frame.h	2020-08-31 12:58:47.916817015 -0000
 @@ -968,6 +968,16 @@ int av_frame_apply_cropping(AVFrame *fra
   */
  const char *av_frame_side_data_name(enum AVFrameSideDataType type);
@@ -79235,7 +78364,7 @@ diff -upPr --minimal a/libavutil/frame.h.orig b/libavutil/frame.h.orig
 +#endif /* AVUTIL_FRAME_H */
 diff -upPr --minimal a/libavutil/Makefile b/libavutil/Makefile
 --- a/libavutil/Makefile	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavutil/Makefile	2020-08-31 12:23:51.152728934 -0000
++++ b/libavutil/Makefile	2020-08-31 12:58:47.912817015 -0000
 @@ -180,6 +180,7 @@ OBJS-$(CONFIG_LZO)
  OBJS-$(CONFIG_MEDIACODEC)               += hwcontext_mediacodec.o
  OBJS-$(CONFIG_OPENCL)                   += hwcontext_opencl.o
@@ -79512,7 +78641,7 @@ diff -upPr --minimal a/libavutil/Makefile.orig b/libavutil/Makefile.orig
 +$(SUBDIR)tests/lzo$(EXESUF): ELIBS = -llzo2
 diff -upPr --minimal a/libavutil/pixdesc.c b/libavutil/pixdesc.c
 --- a/libavutil/pixdesc.c	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavutil/pixdesc.c	2020-08-31 12:23:51.156728934 -0000
++++ b/libavutil/pixdesc.c	2020-08-31 12:58:47.920817015 -0000
 @@ -2371,6 +2371,30 @@ static const AVPixFmtDescriptor av_pix_f
          .name = "vulkan",
          .flags = AV_PIX_FMT_FLAG_HWACCEL,
@@ -82538,7 +81667,7 @@ diff -upPr --minimal a/libavutil/pixdesc.c.orig b/libavutil/pixdesc.c.orig
 +}
 diff -upPr --minimal a/libavutil/pixfmt.h b/libavutil/pixfmt.h
 --- a/libavutil/pixfmt.h	2020-06-17 18:39:23.000000000 -0000
-+++ b/libavutil/pixfmt.h	2020-08-31 12:23:51.156728934 -0000
++++ b/libavutil/pixfmt.h	2020-08-31 12:58:47.920817015 -0000
 @@ -347,6 +347,10 @@ enum AVPixelFormat {
  
      AV_PIX_FMT_NV24,      ///< planar YUV 4:4:4, 24bpp, 1 plane for Y and 1 plane for the UV components, which are interleaved (first byte U and the following byte V)
@@ -83121,7 +82250,7 @@ diff -upPr --minimal a/libavutil/pixfmt.h.orig b/libavutil/pixfmt.h.orig
 +#endif /* AVUTIL_PIXFMT_H */
 diff -upPr --minimal a/libavutil/rpi_sand_fn_pw.h b/libavutil/rpi_sand_fn_pw.h
 --- a/libavutil/rpi_sand_fn_pw.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavutil/rpi_sand_fn_pw.h	2020-08-31 12:23:51.156728934 -0000
++++ b/libavutil/rpi_sand_fn_pw.h	2020-08-31 12:58:47.920817015 -0000
 @@ -0,0 +1,182 @@
 +// * Included twice from rpi_sand_fn with different PW
 +
@@ -83307,7 +82436,7 @@ diff -upPr --minimal a/libavutil/rpi_sand_fn_pw.h b/libavutil/rpi_sand_fn_pw.h
 +
 diff -upPr --minimal a/libavutil/rpi_sand_fns.c b/libavutil/rpi_sand_fns.c
 --- a/libavutil/rpi_sand_fns.c	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavutil/rpi_sand_fns.c	2020-08-31 12:23:51.156728934 -0000
++++ b/libavutil/rpi_sand_fns.c	2020-08-31 12:58:47.920817015 -0000
 @@ -0,0 +1,151 @@
 +#include "config.h"
 +#include <stdint.h>
@@ -83462,7 +82591,7 @@ diff -upPr --minimal a/libavutil/rpi_sand_fns.c b/libavutil/rpi_sand_fns.c
 +}
 diff -upPr --minimal a/libavutil/rpi_sand_fns.h b/libavutil/rpi_sand_fns.h
 --- a/libavutil/rpi_sand_fns.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/libavutil/rpi_sand_fns.h	2020-08-31 12:23:51.156728934 -0000
++++ b/libavutil/rpi_sand_fns.h	2020-08-31 12:58:47.920817015 -0000
 @@ -0,0 +1,136 @@
 +#ifndef AVUTIL_RPI_SAND_FNS
 +#define AVUTIL_RPI_SAND_FNS
@@ -83602,7 +82731,7 @@ diff -upPr --minimal a/libavutil/rpi_sand_fns.h b/libavutil/rpi_sand_fns.h
 +
 diff -upPr --minimal a/pi-util/BUILD.txt b/pi-util/BUILD.txt
 --- a/pi-util/BUILD.txt	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/BUILD.txt	2020-08-31 12:23:51.160728934 -0000
++++ b/pi-util/BUILD.txt	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,25 @@
 +Building Pi FFmpeg
 +==================
@@ -83631,7 +82760,7 @@ diff -upPr --minimal a/pi-util/BUILD.txt b/pi-util/BUILD.txt
 +
 diff -upPr --minimal a/pi-util/conf_h265.2016.csv b/pi-util/conf_h265.2016.csv
 --- a/pi-util/conf_h265.2016.csv	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/conf_h265.2016.csv	2020-08-31 12:23:51.160728934 -0000
++++ b/pi-util/conf_h265.2016.csv	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,195 @@
 +1,HEVC_v1/AMP_A_Samsung_7,AMP_A_Samsung_7.bin,AMP_A_Samsung_7.md5
 +1,HEVC_v1/AMP_B_Samsung_7,AMP_B_Samsung_7.bin,AMP_B_Samsung_7.md5
@@ -83830,7 +82959,7 @@ diff -upPr --minimal a/pi-util/conf_h265.2016.csv b/pi-util/conf_h265.2016.csv
 +1,local/intra_pred_21_laps,intra_pred_21_laps.265,intra_pred_21_laps.md5
 diff -upPr --minimal a/pi-util/conf_h265.2016_HEVC_v1.csv b/pi-util/conf_h265.2016_HEVC_v1.csv
 --- a/pi-util/conf_h265.2016_HEVC_v1.csv	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/conf_h265.2016_HEVC_v1.csv	2020-08-31 12:23:51.160728934 -0000
++++ b/pi-util/conf_h265.2016_HEVC_v1.csv	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,147 @@
 +1,AMP_A_Samsung_7,AMP_A_Samsung_7.bin,AMP_A_Samsung_7.md5
 +1,AMP_B_Samsung_7,AMP_B_Samsung_7.bin,AMP_B_Samsung_7.md5
@@ -83981,7 +83110,7 @@ diff -upPr --minimal a/pi-util/conf_h265.2016_HEVC_v1.csv b/pi-util/conf_h265.20
 +1,WPP_F_ericsson_MAIN_2,WPP_F_ericsson_MAIN_2.bit,WPP_F_ericsson_MAIN_2_yuv.md5
 diff -upPr --minimal a/pi-util/conf_h265.csv b/pi-util/conf_h265.csv
 --- a/pi-util/conf_h265.csv	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/conf_h265.csv	2020-08-31 12:23:51.160728934 -0000
++++ b/pi-util/conf_h265.csv	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,144 @@
 +1,ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_1,ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_1.bit,ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_1.md5
 +1,AMP_A_Samsung_6,AMP_A_Samsung_6.bin,AMP_A_Samsung_6.md5
@@ -84129,7 +83258,7 @@ diff -upPr --minimal a/pi-util/conf_h265.csv b/pi-util/conf_h265.csv
 +1,WPP_F_ericsson_MAIN_2,WPP_F_ericsson_MAIN_2.bit,WPP_F_ericsson_MAIN_2_yuv.md5
 diff -upPr --minimal a/pi-util/conf_pi1.sh b/pi-util/conf_pi1.sh
 --- a/pi-util/conf_pi1.sh	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/conf_pi1.sh	2020-08-31 12:23:51.160728934 -0000
++++ b/pi-util/conf_pi1.sh	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,30 @@
 +echo "Configure for Pi1"
 +
@@ -84163,7 +83292,7 @@ diff -upPr --minimal a/pi-util/conf_pi1.sh b/pi-util/conf_pi1.sh
 +# -Wa,-ahls
 diff -upPr --minimal a/pi-util/conf_pi2.sh b/pi-util/conf_pi2.sh
 --- a/pi-util/conf_pi2.sh	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/conf_pi2.sh	2020-08-31 12:23:51.160728934 -0000
++++ b/pi-util/conf_pi2.sh	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,32 @@
 +echo "Configure for Pi2/3"
 +
@@ -84199,7 +83328,7 @@ diff -upPr --minimal a/pi-util/conf_pi2.sh b/pi-util/conf_pi2.sh
 +# -Wa,-ahls
 diff -upPr --minimal a/pi-util/ffconf.py b/pi-util/ffconf.py
 --- a/pi-util/ffconf.py	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/ffconf.py	2020-08-31 12:23:51.160728934 -0000
++++ b/pi-util/ffconf.py	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,175 @@
 +#!/usr/bin/env python
 +
@@ -84378,7 +83507,7 @@ diff -upPr --minimal a/pi-util/ffconf.py b/pi-util/ffconf.py
 +
 diff -upPr --minimal a/pi-util/ffperf.py b/pi-util/ffperf.py
 --- a/pi-util/ffperf.py	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/ffperf.py	2020-08-31 12:23:51.164728934 -0000
++++ b/pi-util/ffperf.py	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,125 @@
 +#!/usr/bin/env python3
 +
@@ -84507,7 +83636,7 @@ diff -upPr --minimal a/pi-util/ffperf.py b/pi-util/ffperf.py
 +
 diff -upPr --minimal a/pi-util/make_array.py b/pi-util/make_array.py
 --- a/pi-util/make_array.py	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/make_array.py	2020-08-31 12:23:51.164728934 -0000
++++ b/pi-util/make_array.py	2020-08-31 12:58:47.924817015 -0000
 @@ -0,0 +1,23 @@
 +#!/usr/bin/env python
 +
@@ -84534,7 +83663,7 @@ diff -upPr --minimal a/pi-util/make_array.py b/pi-util/make_array.py
 +
 diff -upPr --minimal a/pi-util/perfcmp.py b/pi-util/perfcmp.py
 --- a/pi-util/perfcmp.py	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/perfcmp.py	2020-08-31 12:23:51.164728934 -0000
++++ b/pi-util/perfcmp.py	2020-08-31 12:58:47.928817016 -0000
 @@ -0,0 +1,101 @@
 +#!/usr/bin/env python3
 +
@@ -84639,7 +83768,7 @@ diff -upPr --minimal a/pi-util/perfcmp.py b/pi-util/perfcmp.py
 +
 diff -upPr --minimal a/pi-util/qem.sh b/pi-util/qem.sh
 --- a/pi-util/qem.sh	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/qem.sh	2020-08-31 12:23:51.164728934 -0000
++++ b/pi-util/qem.sh	2020-08-31 12:58:47.928817016 -0000
 @@ -0,0 +1,9 @@
 +TARGET_DIR=../src/eupton_vc4dev_2012a/software/vc4/DEV/applications/tutorials/user_shader_example_tex
 +QASM=python\ ../local/bin/qasm.py
@@ -84652,7 +83781,7 @@ diff -upPr --minimal a/pi-util/qem.sh b/pi-util/qem.sh
 +
 diff -upPr --minimal a/pi-util/v3dusage.py b/pi-util/v3dusage.py
 --- a/pi-util/v3dusage.py	1970-01-01 00:00:00.000000000 -0000
-+++ b/pi-util/v3dusage.py	2020-08-31 12:23:51.164728934 -0000
++++ b/pi-util/v3dusage.py	2020-08-31 12:58:47.928817016 -0000
 @@ -0,0 +1,128 @@
 +#!/usr/bin/env python
 +
