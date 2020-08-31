@@ -1,29 +1,7 @@
-From a853a9c70339c30ea4d5081366fee4bb84bc09c5 Mon Sep 17 00:00:00 2001
-From: Hendrik Leppkes <h.leppkes@gmail.com>
-Date: Sat, 9 Jan 2016 16:34:09 +0100
-Subject: [PATCH 1/4] avcodec: add h264_mvc codec id and profiles
-
----
- libavcodec/avcodec.h    | 3 +++
- libavcodec/codec_desc.c | 7 +++++++
- libavcodec/profiles.c   | 1 +
- libavformat/mpegts.c    | 2 +-
- 4 files changed, 12 insertions(+), 1 deletion(-)
-
-diff --git a/libavcodec/avcodec.h b/libavcodec/avcodec.h
-index 880284d5bd..88e01645cd 100644
---- a/libavcodec/avcodec.h
-+++ b/libavcodec/avcodec.h
-@@ -458,6 +458,8 @@ enum AVCodecID {
-     AV_CODEC_ID_LSCR,
-     AV_CODEC_ID_VP4,
- 
-+    AV_CODEC_ID_H264_MVC,
-+
-     /* various PCM "codecs" */
-     AV_CODEC_ID_FIRST_AUDIO = 0x10000,     ///< A dummy id pointing at the start of audio codecs
-     AV_CODEC_ID_PCM_S16LE = 0x10000,
-@@ -2950,6 +2952,7 @@ typedef struct AVCodecContext {
+diff -upPr --minimal a/libavcodec/avcodec.h b/libavcodec/avcodec.h
+--- a/libavcodec/avcodec.h	2020-08-31 13:15:24.152858865 -0000
++++ b/libavcodec/avcodec.h	2020-08-31 13:15:45.496859762 -0000
+@@ -1911,6 +1911,7 @@ typedef struct AVCodecContext {
  #define FF_PROFILE_H264_HIGH_444_PREDICTIVE  244
  #define FF_PROFILE_H264_HIGH_444_INTRA       (244|FF_PROFILE_H264_INTRA)
  #define FF_PROFILE_H264_CAVLC_444            44
@@ -31,13 +9,63 @@ index 880284d5bd..88e01645cd 100644
  
  #define FF_PROFILE_VC1_SIMPLE   0
  #define FF_PROFILE_VC1_MAIN     1
-diff --git a/libavcodec/codec_desc.c b/libavcodec/codec_desc.c
-index 4d033c20ff..def006e033 100644
---- a/libavcodec/codec_desc.c
-+++ b/libavcodec/codec_desc.c
-@@ -1726,6 +1726,13 @@ static const AVCodecDescriptor codec_descriptors[] = {
-         .long_name = NULL_IF_CONFIG_SMALL("On2 VP4"),
-         .props     = AV_CODEC_PROP_LOSSY,
+diff -upPr --minimal a/libavcodec/avcodec.h.orig b/libavcodec/avcodec.h.orig
+--- a/libavcodec/avcodec.h.orig	2020-08-31 13:15:24.152858865 -0000
++++ b/libavcodec/avcodec.h.orig	2020-08-31 13:13:39.716854478 -0000
+@@ -2238,7 +2238,13 @@ typedef struct AVCodecContext {
+ #endif
+ 
+     /**
+-     * Audio only. The amount of padding (in samples) appended by the encoder to
++     * Opaque pointer for use by replacement get_buffer2 code
++     *
++     * @author jc (08/02/2016)
++     */
++    void * get_buffer_context;
++
++    /* Audio only. The amount of padding (in samples) appended by the encoder to
+      * the end of the audio. I.e. this number of decoded samples must be
+      * discarded by the caller from the end of the stream to get the original
+      * audio without any trailing padding.
+@@ -3654,6 +3660,17 @@ int avcodec_encode_audio2(AVCodecContext
+                           const AVFrame *frame, int *got_packet_ptr);
+ 
+ /**
++ * Find a registered decoder with a matching codec ID and pix_fmt.
++ * A decoder will pix_fmt set to NULL will match any fmt.
++ * A fmt of AV_PIX_FMT_NONE will only match a decoder will px_fmt NULL.
++ *
++ * @param id AVCodecID of the requested decoder
++ * @param fmt AVPixelForma that msut be supported by decoder
++ * @return A decoder if one was found, NULL otherwise.
++ */
++AVCodec *avcodec_find_decoder_by_id_and_fmt(enum AVCodecID id, enum AVPixelFormat fmt);
++
++/**
+  * Encode a frame of video.
+  *
+  * Takes input raw video data from frame and writes the next output packet, if
+diff -upPr --minimal a/libavcodec/avcodec.h.rej b/libavcodec/avcodec.h.rej
+--- a/libavcodec/avcodec.h.rej	1970-01-01 00:00:00.000000000 -0000
++++ b/libavcodec/avcodec.h.rej	2020-08-31 13:15:45.496859762 -0000
+@@ -0,0 +1,11 @@
++--- libavcodec/avcodec.h
+++++ libavcodec/avcodec.h
++@@ -458,6 +458,8 @@ enum AVCodecID {
++     AV_CODEC_ID_LSCR,
++     AV_CODEC_ID_VP4,
++ 
+++    AV_CODEC_ID_H264_MVC,
+++
++     /* various PCM "codecs" */
++     AV_CODEC_ID_FIRST_AUDIO = 0x10000,     ///< A dummy id pointing at the start of audio codecs
++     AV_CODEC_ID_PCM_S16LE = 0x10000,
+diff -upPr --minimal a/libavcodec/codec_desc.c b/libavcodec/codec_desc.c
+--- a/libavcodec/codec_desc.c	2020-06-17 18:39:23.000000000 -0000
++++ b/libavcodec/codec_desc.c	2020-08-31 13:15:45.504859762 -0000
+@@ -1777,6 +1777,13 @@ static const AVCodecDescriptor codec_des
+         .long_name = NULL_IF_CONFIG_SMALL("PFM (Portable FloatMap) image"),
+         .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
      },
 +    {
 +        .id        = AV_CODEC_ID_H264_MVC,
@@ -49,49 +77,3935 @@ index 4d033c20ff..def006e033 100644
  
      /* various PCM "codecs" */
      {
-diff --git a/libavcodec/profiles.c b/libavcodec/profiles.c
-index eaf0d68d32..fc1e152420 100644
---- a/libavcodec/profiles.c
-+++ b/libavcodec/profiles.c
-@@ -71,6 +71,7 @@ const AVProfile ff_h264_profiles[] = {
-     { FF_PROFILE_H264_CAVLC_444,            "CAVLC 4:4:4"           },
-     { FF_PROFILE_H264_MULTIVIEW_HIGH,       "Multiview High"        },
-     { FF_PROFILE_H264_STEREO_HIGH,          "Stereo High"           },
-+    { FF_PROFILE_H264_MULTIVIEW_HIGH_DEPTH, "Multiview High Depth"  },
-     { FF_PROFILE_UNKNOWN },
- };
+diff -upPr --minimal a/libavcodec/codec_desc.c.orig b/libavcodec/codec_desc.c.orig
+--- a/libavcodec/codec_desc.c.orig	1970-01-01 00:00:00.000000000 -0000
++++ b/libavcodec/codec_desc.c.orig	2020-08-31 13:10:09.188845634 -0000
+@@ -0,0 +1,3423 @@
++/*
++ * This file is part of FFmpeg.
++ *
++ * This table was generated from the long and short names of AVCodecs
++ * please see the respective codec sources for authorship
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include <string.h>
++
++#include "libavutil/common.h"
++#include "libavutil/internal.h"
++
++#include "codec_id.h"
++#include "codec_desc.h"
++#include "profiles.h"
++#include "version.h"
++
++#define MT(...) (const char *const[]){ __VA_ARGS__, NULL }
++
++static const AVCodecDescriptor codec_descriptors[] = {
++    /* video codecs */
++    {
++        .id        = AV_CODEC_ID_MPEG1VIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mpeg1video",
++        .long_name = NULL_IF_CONFIG_SMALL("MPEG-1 video"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_MPEG2VIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mpeg2video",
++        .long_name = NULL_IF_CONFIG_SMALL("MPEG-2 video"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_mpeg2_video_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_H261,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "h261",
++        .long_name = NULL_IF_CONFIG_SMALL("H.261"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_H263,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "h263",
++        .long_name = NULL_IF_CONFIG_SMALL("H.263 / H.263-1996, H.263+ / H.263-1998 / H.263 version 2"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_RV10,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rv10",
++        .long_name = NULL_IF_CONFIG_SMALL("RealVideo 1.0"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_RV20,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rv20",
++        .long_name = NULL_IF_CONFIG_SMALL("RealVideo 2.0"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_MJPEG,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mjpeg",
++        .long_name = NULL_IF_CONFIG_SMALL("Motion JPEG"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++        .mime_types= MT("image/jpeg"),
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_mjpeg_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_MJPEGB,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mjpegb",
++        .long_name = NULL_IF_CONFIG_SMALL("Apple MJPEG-B"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_LJPEG,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ljpeg",
++        .long_name = NULL_IF_CONFIG_SMALL("Lossless JPEG"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_SP5X,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "sp5x",
++        .long_name = NULL_IF_CONFIG_SMALL("Sunplus JPEG (SP5X)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_JPEGLS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "jpegls",
++        .long_name = NULL_IF_CONFIG_SMALL("JPEG-LS"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY |
++                     AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MPEG4,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mpeg4",
++        .long_name = NULL_IF_CONFIG_SMALL("MPEG-4 part 2"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_mpeg4_video_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_RAWVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rawvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("raw video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MSMPEG4V1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "msmpeg4v1",
++        .long_name = NULL_IF_CONFIG_SMALL("MPEG-4 part 2 Microsoft variant version 1"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MSMPEG4V2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "msmpeg4v2",
++        .long_name = NULL_IF_CONFIG_SMALL("MPEG-4 part 2 Microsoft variant version 2"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MSMPEG4V3,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "msmpeg4v3",
++        .long_name = NULL_IF_CONFIG_SMALL("MPEG-4 part 2 Microsoft variant version 3"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WMV1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "wmv1",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Video 7"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WMV2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "wmv2",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Video 8"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_H263P,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "h263p",
++        .long_name = NULL_IF_CONFIG_SMALL("H.263+ / H.263-1998 / H.263 version 2"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_H263I,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "h263i",
++        .long_name = NULL_IF_CONFIG_SMALL("Intel H.263"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_FLV1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "flv1",
++        .long_name = NULL_IF_CONFIG_SMALL("FLV / Sorenson Spark / Sorenson H.263 (Flash Video)"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SVQ1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "svq1",
++        .long_name = NULL_IF_CONFIG_SMALL("Sorenson Vector Quantizer 1 / Sorenson Video 1 / SVQ1"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SVQ3,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "svq3",
++        .long_name = NULL_IF_CONFIG_SMALL("Sorenson Vector Quantizer 3 / Sorenson Video 3 / SVQ3"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_DVVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dvvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("DV (Digital Video)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_HUFFYUV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "huffyuv",
++        .long_name = NULL_IF_CONFIG_SMALL("HuffYUV"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_CYUV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cyuv",
++        .long_name = NULL_IF_CONFIG_SMALL("Creative YUV (CYUV)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_H264,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "h264",
++        .long_name = NULL_IF_CONFIG_SMALL("H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS | AV_CODEC_PROP_REORDER,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_h264_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_INDEO3,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "indeo3",
++        .long_name = NULL_IF_CONFIG_SMALL("Intel Indeo 3"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VP3,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp3",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 VP3"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_THEORA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "theora",
++        .long_name = NULL_IF_CONFIG_SMALL("Theora"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ASV1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "asv1",
++        .long_name = NULL_IF_CONFIG_SMALL("ASUS V1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ASV2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "asv2",
++        .long_name = NULL_IF_CONFIG_SMALL("ASUS V2"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FFV1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ffv1",
++        .long_name = NULL_IF_CONFIG_SMALL("FFmpeg video codec #1"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_4XM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "4xm",
++        .long_name = NULL_IF_CONFIG_SMALL("4X Movie"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VCR1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vcr1",
++        .long_name = NULL_IF_CONFIG_SMALL("ATI VCR1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CLJR,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cljr",
++        .long_name = NULL_IF_CONFIG_SMALL("Cirrus Logic AccuPak"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MDEC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mdec",
++        .long_name = NULL_IF_CONFIG_SMALL("Sony PlayStation MDEC (Motion DECoder)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ROQ,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "roq",
++        .long_name = NULL_IF_CONFIG_SMALL("id RoQ video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_INTERPLAY_VIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "interplayvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("Interplay MVE video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_XAN_WC3,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "xan_wc3",
++        .long_name = NULL_IF_CONFIG_SMALL("Wing Commander III / Xan"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_XAN_WC4,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "xan_wc4",
++        .long_name = NULL_IF_CONFIG_SMALL("Wing Commander IV / Xxan"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_RPZA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rpza",
++        .long_name = NULL_IF_CONFIG_SMALL("QuickTime video (RPZA)"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CINEPAK,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cinepak",
++        .long_name = NULL_IF_CONFIG_SMALL("Cinepak"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WS_VQA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ws_vqa",
++        .long_name = NULL_IF_CONFIG_SMALL("Westwood Studios VQA (Vector Quantized Animation) video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MSRLE,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "msrle",
++        .long_name = NULL_IF_CONFIG_SMALL("Microsoft RLE"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MSVIDEO1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "msvideo1",
++        .long_name = NULL_IF_CONFIG_SMALL("Microsoft Video 1"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_IDCIN,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "idcin",
++        .long_name = NULL_IF_CONFIG_SMALL("id Quake II CIN video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_8BPS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "8bps",
++        .long_name = NULL_IF_CONFIG_SMALL("QuickTime 8BPS video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_SMC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "smc",
++        .long_name = NULL_IF_CONFIG_SMALL("QuickTime Graphics (SMC)"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FLIC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "flic",
++        .long_name = NULL_IF_CONFIG_SMALL("Autodesk Animator Flic video"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_TRUEMOTION1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "truemotion1",
++        .long_name = NULL_IF_CONFIG_SMALL("Duck TrueMotion 1.0"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VMDVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vmdvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("Sierra VMD video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MSZH,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mszh",
++        .long_name = NULL_IF_CONFIG_SMALL("LCL (LossLess Codec Library) MSZH"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ZLIB,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "zlib",
++        .long_name = NULL_IF_CONFIG_SMALL("LCL (LossLess Codec Library) ZLIB"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_QTRLE,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "qtrle",
++        .long_name = NULL_IF_CONFIG_SMALL("QuickTime Animation (RLE) video"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_TSCC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tscc",
++        .long_name = NULL_IF_CONFIG_SMALL("TechSmith Screen Capture Codec"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ULTI,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ulti",
++        .long_name = NULL_IF_CONFIG_SMALL("IBM UltiMotion"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_QDRAW,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "qdraw",
++        .long_name = NULL_IF_CONFIG_SMALL("Apple QuickDraw"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_VIXL,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vixl",
++        .long_name = NULL_IF_CONFIG_SMALL("Miro VideoXL"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_QPEG,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "qpeg",
++        .long_name = NULL_IF_CONFIG_SMALL("Q-team QPEG"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PNG,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "png",
++        .long_name = NULL_IF_CONFIG_SMALL("PNG (Portable Network Graphics) image"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/png"),
++    },
++    {
++        .id        = AV_CODEC_ID_PPM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ppm",
++        .long_name = NULL_IF_CONFIG_SMALL("PPM (Portable PixelMap) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PBM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "pbm",
++        .long_name = NULL_IF_CONFIG_SMALL("PBM (Portable BitMap) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PGM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "pgm",
++        .long_name = NULL_IF_CONFIG_SMALL("PGM (Portable GrayMap) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PGMYUV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "pgmyuv",
++        .long_name = NULL_IF_CONFIG_SMALL("PGMYUV (Portable GrayMap YUV) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PAM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "pam",
++        .long_name = NULL_IF_CONFIG_SMALL("PAM (Portable AnyMap) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/x-portable-pixmap"),
++    },
++    {
++        .id        = AV_CODEC_ID_FFVHUFF,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ffvhuff",
++        .long_name = NULL_IF_CONFIG_SMALL("Huffyuv FFmpeg variant"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_RV30,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rv30",
++        .long_name = NULL_IF_CONFIG_SMALL("RealVideo 3.0"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_RV40,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rv40",
++        .long_name = NULL_IF_CONFIG_SMALL("RealVideo 4.0"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_VC1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vc1",
++        .long_name = NULL_IF_CONFIG_SMALL("SMPTE VC-1"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_vc1_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_WMV3,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "wmv3",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Video 9"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_vc1_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_LOCO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "loco",
++        .long_name = NULL_IF_CONFIG_SMALL("LOCO"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_WNV1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "wnv1",
++        .long_name = NULL_IF_CONFIG_SMALL("Winnov WNV1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_AASC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "aasc",
++        .long_name = NULL_IF_CONFIG_SMALL("Autodesk RLE"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_INDEO2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "indeo2",
++        .long_name = NULL_IF_CONFIG_SMALL("Intel Indeo 2"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FRAPS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "fraps",
++        .long_name = NULL_IF_CONFIG_SMALL("Fraps"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_TRUEMOTION2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "truemotion2",
++        .long_name = NULL_IF_CONFIG_SMALL("Duck TrueMotion 2.0"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_BMP,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "bmp",
++        .long_name = NULL_IF_CONFIG_SMALL("BMP (Windows and OS/2 bitmap)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/x-ms-bmp"),
++    },
++    {
++        .id        = AV_CODEC_ID_CSCD,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cscd",
++        .long_name = NULL_IF_CONFIG_SMALL("CamStudio"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MMVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mmvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("American Laser Games MM Video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ZMBV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "zmbv",
++        .long_name = NULL_IF_CONFIG_SMALL("Zip Motion Blocks Video"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_AVS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "avs",
++        .long_name = NULL_IF_CONFIG_SMALL("AVS (Audio Video Standard) video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SMACKVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "smackvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("Smacker video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_NUV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "nuv",
++        .long_name = NULL_IF_CONFIG_SMALL("NuppelVideo/RTJPEG"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_KMVC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "kmvc",
++        .long_name = NULL_IF_CONFIG_SMALL("Karl Morton's video codec"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FLASHSV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "flashsv",
++        .long_name = NULL_IF_CONFIG_SMALL("Flash Screen Video v1"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_CAVS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cavs",
++        .long_name = NULL_IF_CONFIG_SMALL("Chinese AVS (Audio Video Standard) (AVS1-P2, JiZhun profile)"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_JPEG2000,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "jpeg2000",
++        .long_name = NULL_IF_CONFIG_SMALL("JPEG 2000"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY |
++                     AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/jp2"),
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_jpeg2000_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_VMNC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vmnc",
++        .long_name = NULL_IF_CONFIG_SMALL("VMware Screen Codec / VMware Video"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_VP5,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp5",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 VP5"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VP6,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp6",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 VP6"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VP6F,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp6f",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 VP6 (Flash version)"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TARGA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "targa",
++        .long_name = NULL_IF_CONFIG_SMALL("Truevision Targa image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/x-targa", "image/x-tga"),
++    },
++    {
++        .id        = AV_CODEC_ID_DSICINVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dsicinvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("Delphine Software International CIN video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TIERTEXSEQVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tiertexseqvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("Tiertex Limited SEQ video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TIFF,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tiff",
++        .long_name = NULL_IF_CONFIG_SMALL("TIFF image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/tiff"),
++    },
++    {
++        .id        = AV_CODEC_ID_GIF,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "gif",
++        .long_name = NULL_IF_CONFIG_SMALL("CompuServe GIF (Graphics Interchange Format)"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/gif"),
++    },
++    {
++        .id        = AV_CODEC_ID_DXA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dxa",
++        .long_name = NULL_IF_CONFIG_SMALL("Feeble Files/ScummVM DXA"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_DNXHD,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dnxhd",
++        .long_name = NULL_IF_CONFIG_SMALL("VC3/DNxHD"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_dnxhd_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_THP,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "thp",
++        .long_name = NULL_IF_CONFIG_SMALL("Nintendo Gamecube THP video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SGI,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "sgi",
++        .long_name = NULL_IF_CONFIG_SMALL("SGI image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_C93,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "c93",
++        .long_name = NULL_IF_CONFIG_SMALL("Interplay C93"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_BETHSOFTVID,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "bethsoftvid",
++        .long_name = NULL_IF_CONFIG_SMALL("Bethesda VID video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PTX,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ptx",
++        .long_name = NULL_IF_CONFIG_SMALL("V.Flash PTX image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TXD,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "txd",
++        .long_name = NULL_IF_CONFIG_SMALL("Renderware TXD (TeXture Dictionary) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VP6A,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp6a",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 VP6 (Flash version, with alpha channel)"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_AMV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "amv",
++        .long_name = NULL_IF_CONFIG_SMALL("AMV Video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VB,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vb",
++        .long_name = NULL_IF_CONFIG_SMALL("Beam Software VB"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PCX,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "pcx",
++        .long_name = NULL_IF_CONFIG_SMALL("PC Paintbrush PCX image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/x-pcx"),
++    },
++    {
++        .id        = AV_CODEC_ID_SUNRAST,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "sunrast",
++        .long_name = NULL_IF_CONFIG_SMALL("Sun Rasterfile image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_INDEO4,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "indeo4",
++        .long_name = NULL_IF_CONFIG_SMALL("Intel Indeo Video Interactive 4"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_INDEO5,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "indeo5",
++        .long_name = NULL_IF_CONFIG_SMALL("Intel Indeo Video Interactive 5"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MIMIC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mimic",
++        .long_name = NULL_IF_CONFIG_SMALL("Mimic"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_RL2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rl2",
++        .long_name = NULL_IF_CONFIG_SMALL("RL2 video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ESCAPE124,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "escape124",
++        .long_name = NULL_IF_CONFIG_SMALL("Escape 124"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DIRAC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dirac",
++        .long_name = NULL_IF_CONFIG_SMALL("Dirac"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS | AV_CODEC_PROP_REORDER,
++    },
++    {
++        .id        = AV_CODEC_ID_BFI,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "bfi",
++        .long_name = NULL_IF_CONFIG_SMALL("Brute Force & Ignorance"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CMV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cmv",
++        .long_name = NULL_IF_CONFIG_SMALL("Electronic Arts CMV video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MOTIONPIXELS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "motionpixels",
++        .long_name = NULL_IF_CONFIG_SMALL("Motion Pixels video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TGV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tgv",
++        .long_name = NULL_IF_CONFIG_SMALL("Electronic Arts TGV video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TGQ,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tgq",
++        .long_name = NULL_IF_CONFIG_SMALL("Electronic Arts TGQ video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TQI,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tqi",
++        .long_name = NULL_IF_CONFIG_SMALL("Electronic Arts TQI video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_AURA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "aura",
++        .long_name = NULL_IF_CONFIG_SMALL("Auravision AURA"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_AURA2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "aura2",
++        .long_name = NULL_IF_CONFIG_SMALL("Auravision Aura 2"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_V210X,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "v210x",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed 4:2:2 10-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_TMV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tmv",
++        .long_name = NULL_IF_CONFIG_SMALL("8088flex TMV"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_V210,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "v210",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed 4:2:2 10-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_DPX,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dpx",
++        .long_name = NULL_IF_CONFIG_SMALL("DPX (Digital Picture Exchange) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MAD,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mad",
++        .long_name = NULL_IF_CONFIG_SMALL("Electronic Arts Madcow Video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FRWU,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "frwu",
++        .long_name = NULL_IF_CONFIG_SMALL("Forward Uncompressed"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_FLASHSV2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "flashsv2",
++        .long_name = NULL_IF_CONFIG_SMALL("Flash Screen Video v2"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CDGRAPHICS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cdgraphics",
++        .long_name = NULL_IF_CONFIG_SMALL("CD Graphics video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_R210,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "r210",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed RGB 10-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ANM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "anm",
++        .long_name = NULL_IF_CONFIG_SMALL("Deluxe Paint Animation"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_BINKVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "binkvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("Bink video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_IFF_ILBM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "iff_ilbm",
++        .long_name = NULL_IF_CONFIG_SMALL("IFF ACBM/ANIM/DEEP/ILBM/PBM/RGB8/RGBN"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_KGV1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "kgv1",
++        .long_name = NULL_IF_CONFIG_SMALL("Kega Game Video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_YOP,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "yop",
++        .long_name = NULL_IF_CONFIG_SMALL("Psygnosis YOP Video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VP8,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp8",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 VP8"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PICTOR,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "pictor",
++        .long_name = NULL_IF_CONFIG_SMALL("Pictor/PC Paint"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ANSI,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ansi",
++        .long_name = NULL_IF_CONFIG_SMALL("ASCII/ANSI art"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_A64_MULTI,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "a64_multi",
++        .long_name = NULL_IF_CONFIG_SMALL("Multicolor charset for Commodore 64"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_A64_MULTI5,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "a64_multi5",
++        .long_name = NULL_IF_CONFIG_SMALL("Multicolor charset for Commodore 64, extended with 5th color (colram)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_R10K,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "r10k",
++        .long_name = NULL_IF_CONFIG_SMALL("AJA Kona 10-bit RGB Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MXPEG,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mxpeg",
++        .long_name = NULL_IF_CONFIG_SMALL("Mobotix MxPEG video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_LAGARITH,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "lagarith",
++        .long_name = NULL_IF_CONFIG_SMALL("Lagarith lossless"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PRORES,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "prores",
++        .long_name = NULL_IF_CONFIG_SMALL("Apple ProRes (iCodec Pro)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_prores_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_JV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "jv",
++        .long_name = NULL_IF_CONFIG_SMALL("Bitmap Brothers JV video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DFA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dfa",
++        .long_name = NULL_IF_CONFIG_SMALL("Chronomaster DFA"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WMV3IMAGE,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "wmv3image",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Video 9 Image"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VC1IMAGE,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vc1image",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Video 9 Image v2"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_UTVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "utvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("Ut Video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_BMV_VIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "bmv_video",
++        .long_name = NULL_IF_CONFIG_SMALL("Discworld II BMV video"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_VBLE,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vble",
++        .long_name = NULL_IF_CONFIG_SMALL("VBLE Lossless Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_DXTORY,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dxtory",
++        .long_name = NULL_IF_CONFIG_SMALL("Dxtory"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_V410,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "v410",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed 4:4:4 10-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_XWD,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "xwd",
++        .long_name = NULL_IF_CONFIG_SMALL("XWD (X Window Dump) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/x-xwindowdump"),
++    },
++    {
++        .id        = AV_CODEC_ID_CDXL,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cdxl",
++        .long_name = NULL_IF_CONFIG_SMALL("Commodore CDXL video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_XBM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "xbm",
++        .long_name = NULL_IF_CONFIG_SMALL("XBM (X BitMap) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/x-xbitmap"),
++    },
++    {
++        .id        = AV_CODEC_ID_ZEROCODEC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "zerocodec",
++        .long_name = NULL_IF_CONFIG_SMALL("ZeroCodec Lossless Video"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MSS1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mss1",
++        .long_name = NULL_IF_CONFIG_SMALL("MS Screen 1"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MSA1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "msa1",
++        .long_name = NULL_IF_CONFIG_SMALL("MS ATC Screen"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TSCC2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tscc2",
++        .long_name = NULL_IF_CONFIG_SMALL("TechSmith Screen Codec 2"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MTS2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mts2",
++        .long_name = NULL_IF_CONFIG_SMALL("MS Expression Encoder Screen"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CLLC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cllc",
++        .long_name = NULL_IF_CONFIG_SMALL("Canopus Lossless Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MSS2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mss2",
++        .long_name = NULL_IF_CONFIG_SMALL("MS Windows Media Video V9 Screen"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VP9,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp9",
++        .long_name = NULL_IF_CONFIG_SMALL("Google VP9"),
++        .props     = AV_CODEC_PROP_LOSSY,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_vp9_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_AIC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "aic",
++        .long_name = NULL_IF_CONFIG_SMALL("Apple Intermediate Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ESCAPE130,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "escape130",
++        .long_name = NULL_IF_CONFIG_SMALL("Escape 130"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_G2M,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "g2m",
++        .long_name = NULL_IF_CONFIG_SMALL("Go2Meeting"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WEBP,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "webp",
++        .long_name = NULL_IF_CONFIG_SMALL("WebP"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY |
++                     AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/webp"),
++    },
++    {
++        .id        = AV_CODEC_ID_HNM4_VIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "hnm4video",
++        .long_name = NULL_IF_CONFIG_SMALL("HNM 4 video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_HEVC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "hevc",
++        .long_name = NULL_IF_CONFIG_SMALL("H.265 / HEVC (High Efficiency Video Coding)"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_REORDER,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_hevc_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_FIC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "fic",
++        .long_name = NULL_IF_CONFIG_SMALL("Mirillis FIC"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ALIAS_PIX,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "alias_pix",
++        .long_name = NULL_IF_CONFIG_SMALL("Alias/Wavefront PIX image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_BRENDER_PIX,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "brender_pix",
++        .long_name = NULL_IF_CONFIG_SMALL("BRender PIX image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PAF_VIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "paf_video",
++        .long_name = NULL_IF_CONFIG_SMALL("Amazing Studio Packed Animation File Video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_EXR,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "exr",
++        .long_name = NULL_IF_CONFIG_SMALL("OpenEXR image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY |
++                     AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_VP7,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp7",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 VP7"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SANM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "sanm",
++        .long_name = NULL_IF_CONFIG_SMALL("LucasArts SANM/SMUSH video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SGIRLE,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "sgirle",
++        .long_name = NULL_IF_CONFIG_SMALL("SGI RLE 8-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MVC1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mvc1",
++        .long_name = NULL_IF_CONFIG_SMALL("Silicon Graphics Motion Video Compressor 1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MVC2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mvc2",
++        .long_name = NULL_IF_CONFIG_SMALL("Silicon Graphics Motion Video Compressor 2"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_HQX,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "hqx",
++        .long_name = NULL_IF_CONFIG_SMALL("Canopus HQX"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TDSC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "tdsc",
++        .long_name = NULL_IF_CONFIG_SMALL("TDSC"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_HQ_HQA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "hq_hqa",
++        .long_name = NULL_IF_CONFIG_SMALL("Canopus HQ/HQA"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_HAP,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "hap",
++        .long_name = NULL_IF_CONFIG_SMALL("Vidvox Hap"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DDS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dds",
++        .long_name = NULL_IF_CONFIG_SMALL("DirectDraw Surface image decoder"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY |
++                     AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_DXV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "dxv",
++        .long_name = NULL_IF_CONFIG_SMALL("Resolume DXV"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SCREENPRESSO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "screenpresso",
++        .long_name = NULL_IF_CONFIG_SMALL("Screenpresso"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_RSCC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rscc",
++        .long_name = NULL_IF_CONFIG_SMALL("innoHeim/Rsupport Screen Capture Codec"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_AVS2,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "avs2",
++        .long_name = NULL_IF_CONFIG_SMALL("AVS2-P2/IEEE1857.4"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_Y41P,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "y41p",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed YUV 4:1:1 12-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_AVRP,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "avrp",
++        .long_name = NULL_IF_CONFIG_SMALL("Avid 1:1 10-bit RGB Packer"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_012V,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "012v",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed 4:2:2 10-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_AVUI,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "avui",
++        .long_name = NULL_IF_CONFIG_SMALL("Avid Meridien Uncompressed"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_AYUV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ayuv",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed packed MS 4:4:4:4"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_TARGA_Y216,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "targa_y216",
++        .long_name = NULL_IF_CONFIG_SMALL("Pinnacle TARGA CineWave YUV16"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_V308,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "v308",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed packed 4:4:4"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_V408,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "v408",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed packed QT 4:4:4:4"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_YUV4,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "yuv4",
++        .long_name = NULL_IF_CONFIG_SMALL("Uncompressed packed 4:2:0"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_AVRN,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "avrn",
++        .long_name = NULL_IF_CONFIG_SMALL("Avid AVI Codec"),
++    },
++    {
++        .id        = AV_CODEC_ID_CPIA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cpia",
++        .long_name = NULL_IF_CONFIG_SMALL("CPiA video format"),
++    },
++    {
++        .id        = AV_CODEC_ID_XFACE,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "xface",
++        .long_name = NULL_IF_CONFIG_SMALL("X-face image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SNOW,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "snow",
++        .long_name = NULL_IF_CONFIG_SMALL("Snow"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_SMVJPEG,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "smvjpeg",
++        .long_name = NULL_IF_CONFIG_SMALL("Sigmatel Motion Video"),
++    },
++    {
++        .id        = AV_CODEC_ID_APNG,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "apng",
++        .long_name = NULL_IF_CONFIG_SMALL("APNG (Animated Portable Network Graphics) image"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/png"),
++    },
++    {
++        .id        = AV_CODEC_ID_DAALA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "daala",
++        .long_name = NULL_IF_CONFIG_SMALL("Daala"),
++        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_CFHD,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cfhd",
++        .long_name = NULL_IF_CONFIG_SMALL("Cineform HD"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TRUEMOTION2RT,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "truemotion2rt",
++        .long_name = NULL_IF_CONFIG_SMALL("Duck TrueMotion 2.0 Real Time"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_M101,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "m101",
++        .long_name = NULL_IF_CONFIG_SMALL("Matrox Uncompressed SD"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MAGICYUV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "magicyuv",
++        .long_name = NULL_IF_CONFIG_SMALL("MagicYUV video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_SHEERVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "sheervideo",
++        .long_name = NULL_IF_CONFIG_SMALL("BitJazz SheerVideo"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_YLC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "ylc",
++        .long_name = NULL_IF_CONFIG_SMALL("YUY2 Lossless Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PSD,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "psd",
++        .long_name = NULL_IF_CONFIG_SMALL("Photoshop PSD file"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PIXLET,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "pixlet",
++        .long_name = NULL_IF_CONFIG_SMALL("Apple Pixlet"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SPEEDHQ,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "speedhq",
++        .long_name = NULL_IF_CONFIG_SMALL("NewTek SpeedHQ"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FMVC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "fmvc",
++        .long_name = NULL_IF_CONFIG_SMALL("FM Screen Capture Codec"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_SCPR,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "scpr",
++        .long_name = NULL_IF_CONFIG_SMALL("ScreenPressor"),
++        .props     = AV_CODEC_PROP_LOSSLESS | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CLEARVIDEO,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "clearvideo",
++        .long_name = NULL_IF_CONFIG_SMALL("Iterated Systems ClearVideo"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_XPM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "xpm",
++        .long_name = NULL_IF_CONFIG_SMALL("XPM (X PixMap) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/x-xpixmap"),
++    },
++    {
++        .id        = AV_CODEC_ID_AV1,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "av1",
++        .long_name = NULL_IF_CONFIG_SMALL("Alliance for Open Media AV1"),
++        .props     = AV_CODEC_PROP_LOSSY,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_av1_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_BITPACKED,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "bitpacked",
++        .long_name = NULL_IF_CONFIG_SMALL("Bitpacked"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MSCC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mscc",
++        .long_name = NULL_IF_CONFIG_SMALL("Mandsoft Screen Capture Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_SRGC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "srgc",
++        .long_name = NULL_IF_CONFIG_SMALL("Screen Recorder Gold Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_SVG,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "svg",
++        .long_name = NULL_IF_CONFIG_SMALL("Scalable Vector Graphics"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++        .mime_types= MT("image/svg+xml"),
++    },
++    {
++        .id        = AV_CODEC_ID_GDV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "gdv",
++        .long_name = NULL_IF_CONFIG_SMALL("Gremlin Digital Video"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FITS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "fits",
++        .long_name = NULL_IF_CONFIG_SMALL("FITS (Flexible Image Transport System)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_IMM4,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "imm4",
++        .long_name = NULL_IF_CONFIG_SMALL("Infinity IMM4"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PROSUMER,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "prosumer",
++        .long_name = NULL_IF_CONFIG_SMALL("Brooktree ProSumer Video"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MWSC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mwsc",
++        .long_name = NULL_IF_CONFIG_SMALL("MatchWare Screen Capture Codec"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_WCMV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "wcmv",
++        .long_name = NULL_IF_CONFIG_SMALL("WinCAM Motion Video"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_RASC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "rasc",
++        .long_name = NULL_IF_CONFIG_SMALL("RemotelyAnywhere Screen Capture"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_HYMT,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "hymt",
++        .long_name = NULL_IF_CONFIG_SMALL("HuffYUV MT"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ARBC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "arbc",
++        .long_name = NULL_IF_CONFIG_SMALL("Gryphon's Anim Compressor"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_AGM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "agm",
++        .long_name = NULL_IF_CONFIG_SMALL("Amuse Graphics Movie"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_LSCR,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "lscr",
++        .long_name = NULL_IF_CONFIG_SMALL("LEAD Screen Capture"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VP4,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "vp4",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 VP4"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_IMM5,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "imm5",
++        .long_name = NULL_IF_CONFIG_SMALL("Infinity IMM5"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MVDV,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mvdv",
++        .long_name = NULL_IF_CONFIG_SMALL("MidiVid VQ"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MVHA,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mvha",
++        .long_name = NULL_IF_CONFIG_SMALL("MidiVid Archive Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CDTOONS,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "cdtoons",
++        .long_name = NULL_IF_CONFIG_SMALL("CDToons video"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MV30,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "mv30",
++        .long_name = NULL_IF_CONFIG_SMALL("MidiVid 3.0"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_NOTCHLC,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "notchlc",
++        .long_name = NULL_IF_CONFIG_SMALL("NotchLC"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PFM,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "pfm",
++        .long_name = NULL_IF_CONFIG_SMALL("PFM (Portable FloatMap) image"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++
++    /* various PCM "codecs" */
++    {
++        .id        = AV_CODEC_ID_PCM_S16LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s16le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 16-bit little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S16BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s16be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 16-bit big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_U16LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_u16le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM unsigned 16-bit little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_U16BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_u16be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM unsigned 16-bit big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S8,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s8",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 8-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_U8,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_u8",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM unsigned 8-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_MULAW,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_mulaw",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM mu-law / G.711 mu-law"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_ALAW,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_alaw",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM A-law / G.711 A-law"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S32LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s32le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 32-bit little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S32BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s32be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 32-bit big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_U32LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_u32le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM unsigned 32-bit little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_U32BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_u32be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM unsigned 32-bit big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S24LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s24le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 24-bit little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S24BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s24be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 24-bit big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_U24LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_u24le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM unsigned 24-bit little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_U24BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_u24be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM unsigned 24-bit big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S24DAUD,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s24daud",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM D-Cinema audio signed 24-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S16LE_PLANAR,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s16le_planar",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 16-bit little-endian planar"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_DVD,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_dvd",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 20|24-bit big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_F32BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_f32be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM 32-bit floating point big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_F32LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_f32le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM 32-bit floating point little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_F64BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_f64be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM 64-bit floating point big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_F64LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_f64le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM 64-bit floating point little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_BLURAY,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_bluray",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 16|20|24-bit big-endian for Blu-ray media"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_LXF,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_lxf",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 20-bit little-endian planar"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_S302M,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "s302m",
++        .long_name = NULL_IF_CONFIG_SMALL("SMPTE 302M"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S8_PLANAR,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s8_planar",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 8-bit planar"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S24LE_PLANAR,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s24le_planar",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 24-bit little-endian planar"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S32LE_PLANAR,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s32le_planar",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 32-bit little-endian planar"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S16BE_PLANAR,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s16be_planar",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 16-bit big-endian planar"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S64LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s64le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 64-bit little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_S64BE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_s64be",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM signed 64-bit big-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_F16LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_f16le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM 16.8 floating point little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_F24LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_f24le",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM 24.0 floating point little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_PCM_VIDC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "pcm_vidc",
++        .long_name = NULL_IF_CONFIG_SMALL("PCM Archimedes VIDC"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++
++    /* various ADPCM codecs */
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_QT,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_qt",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA QuickTime"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_WAV,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_wav",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA WAV"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_DK3,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_dk3",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Duck DK3"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_DK4,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_dk4",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Duck DK4"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_WS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_ws",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Westwood"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_SMJPEG,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_smjpeg",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Loki SDL MJPEG"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_MS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ms",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Microsoft"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_4XM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_4xm",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM 4X Movie"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_XA,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_xa",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM CDROM XA"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_ADX,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_adx",
++        .long_name = NULL_IF_CONFIG_SMALL("SEGA CRI ADX ADPCM"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_EA,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ea",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Electronic Arts"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_G726,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_g726",
++        .long_name = NULL_IF_CONFIG_SMALL("G.726 ADPCM"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_CT,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ct",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Creative Technology"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_SWF,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_swf",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Shockwave Flash"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_YAMAHA,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_yamaha",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Yamaha"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_SBPRO_4,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_sbpro_4",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Sound Blaster Pro 4-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_SBPRO_3,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_sbpro_3",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Sound Blaster Pro 2.6-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_SBPRO_2,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_sbpro_2",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Sound Blaster Pro 2-bit"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_THP,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_thp",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Nintendo THP"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_AMV,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_amv",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA AMV"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_EA_R1,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ea_r1",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Electronic Arts R1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_EA_R3,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ea_r3",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Electronic Arts R3"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_EA_R2,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ea_r2",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Electronic Arts R2"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_EA_SEAD,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_ea_sead",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Electronic Arts SEAD"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_EA_EACS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_ea_eacs",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Electronic Arts EACS"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_EA_XAS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ea_xas",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Electronic Arts XAS"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_EA_MAXIS_XA,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ea_maxis_xa",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Electronic Arts Maxis CDROM XA"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_ISS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_iss",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Funcom ISS"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_G722,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_g722",
++        .long_name = NULL_IF_CONFIG_SMALL("G.722 ADPCM"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_APC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_apc",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA CRYO APC"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_VIMA,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_vima",
++        .long_name = NULL_IF_CONFIG_SMALL("LucasArts VIMA audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_AFC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_afc",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Nintendo Gamecube AFC"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_OKI,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_oki",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Dialogic OKI"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_DTK,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_dtk",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Nintendo Gamecube DTK"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_RAD,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_rad",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Radical"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_G726LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_g726le",
++        .long_name = NULL_IF_CONFIG_SMALL("G.726 ADPCM little-endian"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_THP_LE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_thp_le",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Nintendo THP (Little-Endian)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_PSX,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_psx",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Playstation"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_AICA,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_aica",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Yamaha AICA"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_DAT4,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_dat4",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Eurocom DAT4"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_MTAF,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_mtaf",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM MTAF"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_AGM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_agm",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM AmuseGraphics Movie AGM"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_ARGO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_argo",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Argonaut Games"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_SSI,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_ssi",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Simon & Schuster Interactive"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_ZORK,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_zork",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM Zork"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_APM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_apm",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Ubisoft APM"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_ALP,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_alp",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA High Voltage Software ALP"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_MTF,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_mtf",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Capcom's MT Framework"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ADPCM_IMA_CUNNING,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "adpcm_ima_cunning",
++        .long_name = NULL_IF_CONFIG_SMALL("ADPCM IMA Cunning Developments"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++
++    /* AMR */
++    {
++        .id        = AV_CODEC_ID_AMR_NB,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "amr_nb",
++        .long_name = NULL_IF_CONFIG_SMALL("AMR-NB (Adaptive Multi-Rate NarrowBand)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_AMR_WB,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "amr_wb",
++        .long_name = NULL_IF_CONFIG_SMALL("AMR-WB (Adaptive Multi-Rate WideBand)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++
++    /* RealAudio codecs*/
++    {
++        .id        = AV_CODEC_ID_RA_144,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "ra_144",
++        .long_name = NULL_IF_CONFIG_SMALL("RealAudio 1.0 (14.4K)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_RA_288,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "ra_288",
++        .long_name = NULL_IF_CONFIG_SMALL("RealAudio 2.0 (28.8K)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++
++    /* various DPCM codecs */
++    {
++        .id        = AV_CODEC_ID_ROQ_DPCM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "roq_dpcm",
++        .long_name = NULL_IF_CONFIG_SMALL("DPCM id RoQ"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_INTERPLAY_DPCM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "interplay_dpcm",
++        .long_name = NULL_IF_CONFIG_SMALL("DPCM Interplay"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_XAN_DPCM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "xan_dpcm",
++        .long_name = NULL_IF_CONFIG_SMALL("DPCM Xan"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SOL_DPCM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "sol_dpcm",
++        .long_name = NULL_IF_CONFIG_SMALL("DPCM Sol"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SDX2_DPCM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "sdx2_dpcm",
++        .long_name = NULL_IF_CONFIG_SMALL("DPCM Squareroot-Delta-Exact"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_GREMLIN_DPCM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "gremlin_dpcm",
++        .long_name = NULL_IF_CONFIG_SMALL("DPCM Gremlin"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DERF_DPCM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "derf_dpcm",
++        .long_name = NULL_IF_CONFIG_SMALL("DPCM Xilam DERF"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++
++    /* audio codecs */
++    {
++        .id        = AV_CODEC_ID_MP2,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mp2",
++        .long_name = NULL_IF_CONFIG_SMALL("MP2 (MPEG audio layer 2)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MP3,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mp3",
++        .long_name = NULL_IF_CONFIG_SMALL("MP3 (MPEG audio layer 3)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_AAC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "aac",
++        .long_name = NULL_IF_CONFIG_SMALL("AAC (Advanced Audio Coding)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_aac_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_AC3,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "ac3",
++        .long_name = NULL_IF_CONFIG_SMALL("ATSC A/52A (AC-3)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DTS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dts",
++        .long_name = NULL_IF_CONFIG_SMALL("DCA (DTS Coherent Acoustics)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_dca_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_VORBIS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "vorbis",
++        .long_name = NULL_IF_CONFIG_SMALL("Vorbis"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DVAUDIO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dvaudio",
++        .long_name = NULL_IF_CONFIG_SMALL("DV audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WMAV1,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "wmav1",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Audio 1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WMAV2,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "wmav2",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Audio 2"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MACE3,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mace3",
++        .long_name = NULL_IF_CONFIG_SMALL("MACE (Macintosh Audio Compression/Expansion) 3:1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MACE6,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mace6",
++        .long_name = NULL_IF_CONFIG_SMALL("MACE (Macintosh Audio Compression/Expansion) 6:1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_VMDAUDIO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "vmdaudio",
++        .long_name = NULL_IF_CONFIG_SMALL("Sierra VMD audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FLAC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "flac",
++        .long_name = NULL_IF_CONFIG_SMALL("FLAC (Free Lossless Audio Codec)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MP3ADU,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mp3adu",
++        .long_name = NULL_IF_CONFIG_SMALL("ADU (Application Data Unit) MP3 (MPEG audio layer 3)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MP3ON4,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mp3on4",
++        .long_name = NULL_IF_CONFIG_SMALL("MP3onMP4"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SHORTEN,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "shorten",
++        .long_name = NULL_IF_CONFIG_SMALL("Shorten"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ALAC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "alac",
++        .long_name = NULL_IF_CONFIG_SMALL("ALAC (Apple Lossless Audio Codec)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_WESTWOOD_SND1,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "westwood_snd1",
++        .long_name = NULL_IF_CONFIG_SMALL("Westwood Audio (SND1)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_GSM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "gsm",
++        .long_name = NULL_IF_CONFIG_SMALL("GSM"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_QDM2,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "qdm2",
++        .long_name = NULL_IF_CONFIG_SMALL("QDesign Music Codec 2"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_COOK,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "cook",
++        .long_name = NULL_IF_CONFIG_SMALL("Cook / Cooker / Gecko (RealAudio G2)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TRUESPEECH,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "truespeech",
++        .long_name = NULL_IF_CONFIG_SMALL("DSP Group TrueSpeech"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TTA,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "tta",
++        .long_name = NULL_IF_CONFIG_SMALL("TTA (True Audio)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_SMACKAUDIO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "smackaudio",
++        .long_name = NULL_IF_CONFIG_SMALL("Smacker audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_QCELP,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "qcelp",
++        .long_name = NULL_IF_CONFIG_SMALL("QCELP / PureVoice"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WAVPACK,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "wavpack",
++        .long_name = NULL_IF_CONFIG_SMALL("WavPack"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY |
++                     AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_DSICINAUDIO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dsicinaudio",
++        .long_name = NULL_IF_CONFIG_SMALL("Delphine Software International CIN audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_IMC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "imc",
++        .long_name = NULL_IF_CONFIG_SMALL("IMC (Intel Music Coder)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MUSEPACK7,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "musepack7",
++        .long_name = NULL_IF_CONFIG_SMALL("Musepack SV7"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MLP,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mlp",
++        .long_name = NULL_IF_CONFIG_SMALL("MLP (Meridian Lossless Packing)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_GSM_MS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "gsm_ms",
++        .long_name = NULL_IF_CONFIG_SMALL("GSM Microsoft variant"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ATRAC3,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "atrac3",
++        .long_name = NULL_IF_CONFIG_SMALL("ATRAC3 (Adaptive TRansform Acoustic Coding 3)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_APE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "ape",
++        .long_name = NULL_IF_CONFIG_SMALL("Monkey's Audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_NELLYMOSER,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "nellymoser",
++        .long_name = NULL_IF_CONFIG_SMALL("Nellymoser Asao"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MUSEPACK8,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "musepack8",
++        .long_name = NULL_IF_CONFIG_SMALL("Musepack SV8"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SPEEX,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "speex",
++        .long_name = NULL_IF_CONFIG_SMALL("Speex"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WMAVOICE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "wmavoice",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Audio Voice"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WMAPRO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "wmapro",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Audio 9 Professional"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_WMALOSSLESS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "wmalossless",
++        .long_name = NULL_IF_CONFIG_SMALL("Windows Media Audio Lossless"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ATRAC3P,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "atrac3p",
++        .long_name = NULL_IF_CONFIG_SMALL("ATRAC3+ (Adaptive TRansform Acoustic Coding 3+)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_EAC3,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "eac3",
++        .long_name = NULL_IF_CONFIG_SMALL("ATSC A/52B (AC-3, E-AC-3)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SIPR,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "sipr",
++        .long_name = NULL_IF_CONFIG_SMALL("RealAudio SIPR / ACELP.NET"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MP1,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mp1",
++        .long_name = NULL_IF_CONFIG_SMALL("MP1 (MPEG audio layer 1)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TWINVQ,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "twinvq",
++        .long_name = NULL_IF_CONFIG_SMALL("VQF TwinVQ"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TRUEHD,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "truehd",
++        .long_name = NULL_IF_CONFIG_SMALL("TrueHD"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_MP4ALS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mp4als",
++        .long_name = NULL_IF_CONFIG_SMALL("MPEG-4 Audio Lossless Coding (ALS)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ATRAC1,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "atrac1",
++        .long_name = NULL_IF_CONFIG_SMALL("ATRAC1 (Adaptive TRansform Acoustic Coding)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_BINKAUDIO_RDFT,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "binkaudio_rdft",
++        .long_name = NULL_IF_CONFIG_SMALL("Bink Audio (RDFT)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_BINKAUDIO_DCT,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "binkaudio_dct",
++        .long_name = NULL_IF_CONFIG_SMALL("Bink Audio (DCT)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_AAC_LATM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "aac_latm",
++        .long_name = NULL_IF_CONFIG_SMALL("AAC LATM (Advanced Audio Coding LATM syntax)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_aac_profiles),
++    },
++    {
++        .id        = AV_CODEC_ID_QDMC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "qdmc",
++        .long_name = NULL_IF_CONFIG_SMALL("QDesign Music"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CELT,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "celt",
++        .long_name = NULL_IF_CONFIG_SMALL("Constrained Energy Lapped Transform (CELT)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_G723_1,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "g723_1",
++        .long_name = NULL_IF_CONFIG_SMALL("G.723.1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_G729,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "g729",
++        .long_name = NULL_IF_CONFIG_SMALL("G.729"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_8SVX_EXP,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "8svx_exp",
++        .long_name = NULL_IF_CONFIG_SMALL("8SVX exponential"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_8SVX_FIB,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "8svx_fib",
++        .long_name = NULL_IF_CONFIG_SMALL("8SVX fibonacci"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_BMV_AUDIO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "bmv_audio",
++        .long_name = NULL_IF_CONFIG_SMALL("Discworld II BMV audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_RALF,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "ralf",
++        .long_name = NULL_IF_CONFIG_SMALL("RealAudio Lossless"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_IAC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "iac",
++        .long_name = NULL_IF_CONFIG_SMALL("IAC (Indeo Audio Coder)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ILBC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "ilbc",
++        .long_name = NULL_IF_CONFIG_SMALL("iLBC (Internet Low Bitrate Codec)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_OPUS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "opus",
++        .long_name = NULL_IF_CONFIG_SMALL("Opus (Opus Interactive Audio Codec)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_COMFORT_NOISE,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "comfortnoise",
++        .long_name = NULL_IF_CONFIG_SMALL("RFC 3389 Comfort Noise"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_TAK,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "tak",
++        .long_name = NULL_IF_CONFIG_SMALL("TAK (Tom's lossless Audio Kompressor)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_METASOUND,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "metasound",
++        .long_name = NULL_IF_CONFIG_SMALL("Voxware MetaSound"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_PAF_AUDIO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "paf_audio",
++        .long_name = NULL_IF_CONFIG_SMALL("Amazing Studio Packed Animation File Audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ON2AVC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "avc",
++        .long_name = NULL_IF_CONFIG_SMALL("On2 Audio for Video Codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DSS_SP,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dss_sp",
++        .long_name = NULL_IF_CONFIG_SMALL("Digital Speech Standard - Standard Play mode (DSS SP)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_CODEC2,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "codec2",
++        .long_name = NULL_IF_CONFIG_SMALL("codec2 (very low bitrate speech codec)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_FFWAVESYNTH,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "wavesynth",
++        .long_name = NULL_IF_CONFIG_SMALL("Wave synthesis pseudo-codec"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY,
++    },
++    {
++        .id        = AV_CODEC_ID_SONIC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "sonic",
++        .long_name = NULL_IF_CONFIG_SMALL("Sonic"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY,
++    },
++    {
++        .id        = AV_CODEC_ID_SONIC_LS,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "sonicls",
++        .long_name = NULL_IF_CONFIG_SMALL("Sonic lossless"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY,
++    },
++    {
++        .id        = AV_CODEC_ID_EVRC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "evrc",
++        .long_name = NULL_IF_CONFIG_SMALL("EVRC (Enhanced Variable Rate Codec)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SMV,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "smv",
++        .long_name = NULL_IF_CONFIG_SMALL("SMV (Selectable Mode Vocoder)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DSD_LSBF,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dsd_lsbf",
++        .long_name = NULL_IF_CONFIG_SMALL("DSD (Direct Stream Digital), least significant bit first"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DSD_MSBF,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dsd_msbf",
++        .long_name = NULL_IF_CONFIG_SMALL("DSD (Direct Stream Digital), most significant bit first"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DSD_LSBF_PLANAR,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dsd_lsbf_planar",
++        .long_name = NULL_IF_CONFIG_SMALL("DSD (Direct Stream Digital), least significant bit first, planar"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DSD_MSBF_PLANAR,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dsd_msbf_planar",
++        .long_name = NULL_IF_CONFIG_SMALL("DSD (Direct Stream Digital), most significant bit first, planar"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_4GV,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "4gv",
++        .long_name = NULL_IF_CONFIG_SMALL("4GV (Fourth Generation Vocoder)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_INTERPLAY_ACM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "interplayacm",
++        .long_name = NULL_IF_CONFIG_SMALL("Interplay ACM"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_XMA1,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "xma1",
++        .long_name = NULL_IF_CONFIG_SMALL("Xbox Media Audio 1"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_XMA2,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "xma2",
++        .long_name = NULL_IF_CONFIG_SMALL("Xbox Media Audio 2"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_DST,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dst",
++        .long_name = NULL_IF_CONFIG_SMALL("DST (Direct Stream Transfer)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ATRAC3AL,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "atrac3al",
++        .long_name = NULL_IF_CONFIG_SMALL("ATRAC3 AL (Adaptive TRansform Acoustic Coding 3 Advanced Lossless)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_ATRAC3PAL,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "atrac3pal",
++        .long_name = NULL_IF_CONFIG_SMALL("ATRAC3+ AL (Adaptive TRansform Acoustic Coding 3+ Advanced Lossless)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSLESS,
++    },
++    {
++        .id        = AV_CODEC_ID_DOLBY_E,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "dolby_e",
++        .long_name = NULL_IF_CONFIG_SMALL("Dolby E"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_APTX,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "aptx",
++        .long_name = NULL_IF_CONFIG_SMALL("aptX (Audio Processing Technology for Bluetooth)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_APTX_HD,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "aptx_hd",
++        .long_name = NULL_IF_CONFIG_SMALL("aptX HD (Audio Processing Technology for Bluetooth)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SBC,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "sbc",
++        .long_name = NULL_IF_CONFIG_SMALL("SBC (low-complexity subband codec)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ATRAC9,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "atrac9",
++        .long_name = NULL_IF_CONFIG_SMALL("ATRAC9 (Adaptive TRansform Acoustic Coding 9)"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_HCOM,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "hcom",
++        .long_name = NULL_IF_CONFIG_SMALL("HCOM Audio"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_ACELP_KELVIN,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "acelp.kelvin",
++        .long_name = NULL_IF_CONFIG_SMALL("Sipro ACELP.KELVIN"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_MPEGH_3D_AUDIO,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "mpegh_3d_audio",
++        .long_name = NULL_IF_CONFIG_SMALL("MPEG-H 3D Audio"),
++        .props     = AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_SIREN,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "siren",
++        .long_name = NULL_IF_CONFIG_SMALL("Siren"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++    {
++        .id        = AV_CODEC_ID_HCA,
++        .type      = AVMEDIA_TYPE_AUDIO,
++        .name      = "hca",
++        .long_name = NULL_IF_CONFIG_SMALL("CRI HCA"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
++    },
++
++    /* subtitle codecs */
++    {
++        .id        = AV_CODEC_ID_DVD_SUBTITLE,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "dvd_subtitle",
++        .long_name = NULL_IF_CONFIG_SMALL("DVD subtitles"),
++        .props     = AV_CODEC_PROP_BITMAP_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_DVB_SUBTITLE,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "dvb_subtitle",
++        .long_name = NULL_IF_CONFIG_SMALL("DVB subtitles"),
++        .props     = AV_CODEC_PROP_BITMAP_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_TEXT,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "text",
++        .long_name = NULL_IF_CONFIG_SMALL("raw UTF-8 text"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_XSUB,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "xsub",
++        .long_name = NULL_IF_CONFIG_SMALL("XSUB"),
++        .props     = AV_CODEC_PROP_BITMAP_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_SSA,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "ssa",
++        .long_name = NULL_IF_CONFIG_SMALL("SSA (SubStation Alpha) subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_MOV_TEXT,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "mov_text",
++        .long_name = NULL_IF_CONFIG_SMALL("MOV text"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_HDMV_PGS_SUBTITLE,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "hdmv_pgs_subtitle",
++        .long_name = NULL_IF_CONFIG_SMALL("HDMV Presentation Graphic Stream subtitles"),
++        .props     = AV_CODEC_PROP_BITMAP_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_DVB_TELETEXT,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "dvb_teletext",
++        .long_name = NULL_IF_CONFIG_SMALL("DVB teletext"),
++    },
++    {
++        .id        = AV_CODEC_ID_SRT,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "srt",
++        .long_name = NULL_IF_CONFIG_SMALL("SubRip subtitle with embedded timing"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_MICRODVD,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "microdvd",
++        .long_name = NULL_IF_CONFIG_SMALL("MicroDVD subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_EIA_608,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "eia_608",
++        .long_name = NULL_IF_CONFIG_SMALL("EIA-608 closed captions"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_JACOSUB,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "jacosub",
++        .long_name = NULL_IF_CONFIG_SMALL("JACOsub subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_SAMI,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "sami",
++        .long_name = NULL_IF_CONFIG_SMALL("SAMI subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_REALTEXT,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "realtext",
++        .long_name = NULL_IF_CONFIG_SMALL("RealText subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_STL,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "stl",
++        .long_name = NULL_IF_CONFIG_SMALL("Spruce subtitle format"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_SUBVIEWER1,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "subviewer1",
++        .long_name = NULL_IF_CONFIG_SMALL("SubViewer v1 subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_SUBVIEWER,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "subviewer",
++        .long_name = NULL_IF_CONFIG_SMALL("SubViewer subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_SUBRIP,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "subrip",
++        .long_name = NULL_IF_CONFIG_SMALL("SubRip subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_WEBVTT,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "webvtt",
++        .long_name = NULL_IF_CONFIG_SMALL("WebVTT subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_MPL2,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "mpl2",
++        .long_name = NULL_IF_CONFIG_SMALL("MPL2 subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_VPLAYER,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "vplayer",
++        .long_name = NULL_IF_CONFIG_SMALL("VPlayer subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_PJS,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "pjs",
++        .long_name = NULL_IF_CONFIG_SMALL("PJS (Phoenix Japanimation Society) subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_ASS,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "ass",
++        .long_name = NULL_IF_CONFIG_SMALL("ASS (Advanced SSA) subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_HDMV_TEXT_SUBTITLE,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "hdmv_text_subtitle",
++        .long_name = NULL_IF_CONFIG_SMALL("HDMV Text subtitle"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_TTML,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "ttml",
++        .long_name = NULL_IF_CONFIG_SMALL("Timed Text Markup Language"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++    },
++    {
++        .id        = AV_CODEC_ID_ARIB_CAPTION,
++        .type      = AVMEDIA_TYPE_SUBTITLE,
++        .name      = "arib_caption",
++        .long_name = NULL_IF_CONFIG_SMALL("ARIB STD-B24 caption"),
++        .props     = AV_CODEC_PROP_TEXT_SUB,
++        .profiles  = NULL_IF_CONFIG_SMALL(ff_arib_caption_profiles),
++    },
++
++    /* other kind of codecs and pseudo-codecs */
++    {
++        .id        = AV_CODEC_ID_TTF,
++        .type      = AVMEDIA_TYPE_DATA,
++        .name      = "ttf",
++        .long_name = NULL_IF_CONFIG_SMALL("TrueType font"),
++        .mime_types= MT("application/x-truetype-font", "application/x-font"),
++    },
++    {
++        .id        = AV_CODEC_ID_SCTE_35,
++        .type      = AVMEDIA_TYPE_DATA,
++        .name      = "scte_35",
++        .long_name = NULL_IF_CONFIG_SMALL("SCTE 35 Message Queue"),
++    },
++    {
++        .id        = AV_CODEC_ID_EPG,
++        .type      = AVMEDIA_TYPE_DATA,
++        .name      = "epg",
++        .long_name = NULL_IF_CONFIG_SMALL("Electronic Program Guide"),
++    },
++    {
++        .id        = AV_CODEC_ID_BINTEXT,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "bintext",
++        .long_name = NULL_IF_CONFIG_SMALL("Binary text"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY,
++    },
++    {
++        .id        = AV_CODEC_ID_XBIN,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "xbin",
++        .long_name = NULL_IF_CONFIG_SMALL("eXtended BINary text"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY,
++    },
++    {
++        .id        = AV_CODEC_ID_IDF,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "idf",
++        .long_name = NULL_IF_CONFIG_SMALL("iCEDraw text"),
++        .props     = AV_CODEC_PROP_INTRA_ONLY,
++    },
++    {
++        .id        = AV_CODEC_ID_OTF,
++        .type      = AVMEDIA_TYPE_DATA,
++        .name      = "otf",
++        .long_name = NULL_IF_CONFIG_SMALL("OpenType font"),
++        .mime_types= MT("application/vnd.ms-opentype"),
++    },
++    {
++        .id        = AV_CODEC_ID_SMPTE_KLV,
++        .type      = AVMEDIA_TYPE_DATA,
++        .name      = "klv",
++        .long_name = NULL_IF_CONFIG_SMALL("SMPTE 336M Key-Length-Value (KLV) metadata"),
++    },
++    {
++        .id        = AV_CODEC_ID_DVD_NAV,
++        .type      = AVMEDIA_TYPE_DATA,
++        .name      = "dvd_nav_packet",
++        .long_name = NULL_IF_CONFIG_SMALL("DVD Nav packet"),
++    },
++    {
++        .id        = AV_CODEC_ID_TIMED_ID3,
++        .type      = AVMEDIA_TYPE_DATA,
++        .name      = "timed_id3",
++        .long_name = NULL_IF_CONFIG_SMALL("timed ID3 metadata"),
++    },
++    {
++        .id        = AV_CODEC_ID_BIN_DATA,
++        .type      = AVMEDIA_TYPE_DATA,
++        .name      = "bin_data",
++        .long_name = NULL_IF_CONFIG_SMALL("binary data"),
++        .mime_types= MT("application/octet-stream"),
++    },
++    {
++        .id        = AV_CODEC_ID_WRAPPED_AVFRAME,
++        .type      = AVMEDIA_TYPE_VIDEO,
++        .name      = "wrapped_avframe",
++        .long_name = NULL_IF_CONFIG_SMALL("AVFrame to AVPacket passthrough"),
++        .props     = AV_CODEC_PROP_LOSSLESS,
++    },
++};
++
++static int descriptor_compare(const void *key, const void *member)
++{
++    enum AVCodecID id = *(const enum AVCodecID *) key;
++    const AVCodecDescriptor *desc = member;
++
++    return id - desc->id;
++}
++
++const AVCodecDescriptor *avcodec_descriptor_get(enum AVCodecID id)
++{
++    return bsearch(&id, codec_descriptors, FF_ARRAY_ELEMS(codec_descriptors),
++                   sizeof(codec_descriptors[0]), descriptor_compare);
++}
++
++const AVCodecDescriptor *avcodec_descriptor_next(const AVCodecDescriptor *prev)
++{
++    if (!prev)
++        return &codec_descriptors[0];
++    if (prev - codec_descriptors < FF_ARRAY_ELEMS(codec_descriptors) - 1)
++        return prev + 1;
++    return NULL;
++}
++
++const AVCodecDescriptor *avcodec_descriptor_get_by_name(const char *name)
++{
++    const AVCodecDescriptor *desc = NULL;
++
++    while ((desc = avcodec_descriptor_next(desc)))
++        if (!strcmp(desc->name, name))
++            return desc;
++    return NULL;
++}
++
++enum AVMediaType avcodec_get_type(enum AVCodecID codec_id)
++{
++    const AVCodecDescriptor *desc = avcodec_descriptor_get(codec_id);
++    return desc ? desc->type : AVMEDIA_TYPE_UNKNOWN;
++}
+diff -upPr --minimal a/libavcodec/codec_id.h b/libavcodec/codec_id.h
+--- a/libavcodec/codec_id.h	2020-06-17 18:39:23.000000000 -0000
++++ b/libavcodec/codec_id.h	2020-08-31 13:22:14.980876123 -0000
+@@ -288,6 +288,7 @@ enum AVCodecID {
+     AV_CODEC_ID_AGM,
+     AV_CODEC_ID_LSCR,
+     AV_CODEC_ID_VP4,
++    AV_CODEC_ID_H264_MVC,
+     AV_CODEC_ID_IMM5,
+     AV_CODEC_ID_MVDV,
+     AV_CODEC_ID_MVHA,
+diff -upPr --minimal a/libavcodec/extract_extradata_bsf.c b/libavcodec/extract_extradata_bsf.c
+--- a/libavcodec/extract_extradata_bsf.c	2020-06-17 18:39:23.000000000 -0000
++++ b/libavcodec/extract_extradata_bsf.c	2020-08-31 13:15:45.524859763 -0000
+@@ -140,7 +140,7 @@ static int extract_extradata_h2645(AVBSF
+         HEVC_NAL_VPS, HEVC_NAL_SPS, HEVC_NAL_PPS,
+     };
+     static const int extradata_nal_types_h264[] = {
+-        H264_NAL_SPS, H264_NAL_PPS,
++        H264_NAL_SPS, H264_NAL_SUB_SPS, H264_NAL_PPS,
+     };
  
-diff --git a/libavformat/mpegts.c b/libavformat/mpegts.c
-index 0415ceea02..264bf9718b 100644
---- a/libavformat/mpegts.c
-+++ b/libavformat/mpegts.c
-@@ -798,7 +798,7 @@ static const StreamType ISO_types[] = {
- #endif
-     { 0x1b, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_H264       },
-     { 0x1c, AVMEDIA_TYPE_AUDIO, AV_CODEC_ID_AAC        },
--    { 0x20, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_H264       },
-+    { 0x20, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_H264_MVC   },
-     { 0x21, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_JPEG2000   },
-     { 0x24, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_HEVC       },
-     { 0x42, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_CAVS       },
--- 
-2.20.1
-
-
-From 8d479b1b5395f97a8e5ee0eddab6680941edfb5b Mon Sep 17 00:00:00 2001
-From: Hendrik Leppkes <h.leppkes@gmail.com>
-Date: Sat, 9 Jan 2016 16:34:40 +0100
-Subject: [PATCH 2/4] h264_parser: add support for parsing h264 mvc NALUs
-
----
- libavcodec/h264_parser.c | 34 ++++++++++++++++++++++++++++++----
- libavcodec/parsers.c     |  1 +
- 2 files changed, 31 insertions(+), 4 deletions(-)
-
-diff --git a/libavcodec/h264_parser.c b/libavcodec/h264_parser.c
-index 5f9a9c46ef..991e8e82f3 100644
---- a/libavcodec/h264_parser.c
-+++ b/libavcodec/h264_parser.c
+     ExtractExtradataContext *s = ctx->priv_data;
+@@ -171,7 +171,7 @@ static int extract_extradata_h2645(AVBSF
+                 if (nal->type == HEVC_NAL_SPS) has_sps = 1;
+                 if (nal->type == HEVC_NAL_VPS) has_vps = 1;
+             } else {
+-                if (nal->type == H264_NAL_SPS) has_sps = 1;
++                if (nal->type == H264_NAL_SPS || nal->type == H264_NAL_SUB_SPS) has_sps = 1;
+             }
+         } else if (s->remove) {
+             filtered_size += nal->raw_size + 3;
+@@ -180,7 +180,7 @@ static int extract_extradata_h2645(AVBSF
+ 
+     if (extradata_size &&
+         ((ctx->par_in->codec_id == AV_CODEC_ID_HEVC && has_sps && has_vps) ||
+-         (ctx->par_in->codec_id == AV_CODEC_ID_H264 && has_sps))) {
++         ((ctx->par_in->codec_id == AV_CODEC_ID_H264 || ctx->par_in->codec_id == AV_CODEC_ID_H264_MVC) && has_sps))) {
+         AVBufferRef *filtered_buf = NULL;
+         PutByteContext pb_filtered_data, pb_extradata;
+         uint8_t *extradata;
+@@ -337,6 +337,7 @@ static const struct {
+     { AV_CODEC_ID_AVS2,       extract_extradata_mpeg4   },
+     { AV_CODEC_ID_CAVS,       extract_extradata_mpeg4   },
+     { AV_CODEC_ID_H264,       extract_extradata_h2645   },
++    { AV_CODEC_ID_H264_MVC,   extract_extradata_h2645   },
+     { AV_CODEC_ID_HEVC,       extract_extradata_h2645   },
+     { AV_CODEC_ID_MPEG1VIDEO, extract_extradata_mpeg12  },
+     { AV_CODEC_ID_MPEG2VIDEO, extract_extradata_mpeg12  },
+@@ -404,6 +405,7 @@ static const enum AVCodecID codec_ids[]
+     AV_CODEC_ID_AVS2,
+     AV_CODEC_ID_CAVS,
+     AV_CODEC_ID_H264,
++    AV_CODEC_ID_H264_MVC,
+     AV_CODEC_ID_HEVC,
+     AV_CODEC_ID_MPEG1VIDEO,
+     AV_CODEC_ID_MPEG2VIDEO,
+diff -upPr --minimal a/libavcodec/extract_extradata_bsf.c.orig b/libavcodec/extract_extradata_bsf.c.orig
+--- a/libavcodec/extract_extradata_bsf.c.orig	1970-01-01 00:00:00.000000000 -0000
++++ b/libavcodec/extract_extradata_bsf.c.orig	2020-08-31 13:10:09.192845634 -0000
+@@ -0,0 +1,438 @@
++/*
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include <stdint.h>
++
++#include "libavutil/common.h"
++#include "libavutil/intreadwrite.h"
++#include "libavutil/log.h"
++#include "libavutil/opt.h"
++
++#include "av1.h"
++#include "av1_parse.h"
++#include "bsf.h"
++#include "bsf_internal.h"
++#include "bytestream.h"
++#include "h2645_parse.h"
++#include "h264.h"
++#include "hevc.h"
++#include "vc1_common.h"
++
++typedef struct ExtractExtradataContext {
++    const AVClass *class;
++
++    int (*extract)(AVBSFContext *ctx, AVPacket *pkt,
++                   uint8_t **data, int *size);
++
++    /* AV1 specific fields */
++    AV1Packet av1_pkt;
++
++    /* H264/HEVC specific fields */
++    H2645Packet h2645_pkt;
++
++    /* AVOptions */
++    int remove;
++} ExtractExtradataContext;
++
++static int val_in_array(const int *arr, int len, int val)
++{
++    int i;
++    for (i = 0; i < len; i++)
++        if (arr[i] == val)
++            return 1;
++    return 0;
++}
++
++static int extract_extradata_av1(AVBSFContext *ctx, AVPacket *pkt,
++                                 uint8_t **data, int *size)
++{
++    static const int extradata_obu_types[] = {
++        AV1_OBU_SEQUENCE_HEADER, AV1_OBU_METADATA,
++    };
++    ExtractExtradataContext *s = ctx->priv_data;
++
++    int extradata_size = 0, filtered_size = 0;
++    int nb_extradata_obu_types = FF_ARRAY_ELEMS(extradata_obu_types);
++    int i, has_seq = 0, ret = 0;
++
++    ret = ff_av1_packet_split(&s->av1_pkt, pkt->data, pkt->size, ctx);
++    if (ret < 0)
++        return ret;
++
++    for (i = 0; i < s->av1_pkt.nb_obus; i++) {
++        AV1OBU *obu = &s->av1_pkt.obus[i];
++        if (val_in_array(extradata_obu_types, nb_extradata_obu_types, obu->type)) {
++            extradata_size += obu->raw_size;
++            if (obu->type == AV1_OBU_SEQUENCE_HEADER)
++                has_seq = 1;
++        } else if (s->remove) {
++            filtered_size += obu->raw_size;
++        }
++    }
++
++    if (extradata_size && has_seq) {
++        AVBufferRef *filtered_buf = NULL;
++        PutByteContext pb_filtered_data, pb_extradata;
++        uint8_t *extradata;
++
++        if (s->remove) {
++            filtered_buf = av_buffer_alloc(filtered_size + AV_INPUT_BUFFER_PADDING_SIZE);
++            if (!filtered_buf) {
++                return AVERROR(ENOMEM);
++            }
++            memset(filtered_buf->data + filtered_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++        }
++
++        extradata = av_malloc(extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
++        if (!extradata) {
++            av_buffer_unref(&filtered_buf);
++            return AVERROR(ENOMEM);
++        }
++        memset(extradata + extradata_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++
++        *data = extradata;
++        *size = extradata_size;
++
++        bytestream2_init_writer(&pb_extradata, extradata, extradata_size);
++        if (s->remove)
++            bytestream2_init_writer(&pb_filtered_data, filtered_buf->data, filtered_size);
++
++        for (i = 0; i < s->av1_pkt.nb_obus; i++) {
++            AV1OBU *obu = &s->av1_pkt.obus[i];
++            if (val_in_array(extradata_obu_types, nb_extradata_obu_types,
++                             obu->type)) {
++                bytestream2_put_bufferu(&pb_extradata, obu->raw_data, obu->raw_size);
++            } else if (s->remove) {
++                bytestream2_put_bufferu(&pb_filtered_data, obu->raw_data, obu->raw_size);
++            }
++        }
++
++        if (s->remove) {
++            av_buffer_unref(&pkt->buf);
++            pkt->buf  = filtered_buf;
++            pkt->data = filtered_buf->data;
++            pkt->size = filtered_size;
++        }
++    }
++
++    return 0;
++}
++
++static int extract_extradata_h2645(AVBSFContext *ctx, AVPacket *pkt,
++                                   uint8_t **data, int *size)
++{
++    static const int extradata_nal_types_hevc[] = {
++        HEVC_NAL_VPS, HEVC_NAL_SPS, HEVC_NAL_PPS,
++    };
++    static const int extradata_nal_types_h264[] = {
++        H264_NAL_SPS, H264_NAL_PPS,
++    };
++
++    ExtractExtradataContext *s = ctx->priv_data;
++
++    int extradata_size = 0, filtered_size = 0;
++    const int *extradata_nal_types;
++    int nb_extradata_nal_types;
++    int i, has_sps = 0, has_vps = 0, ret = 0;
++
++    if (ctx->par_in->codec_id == AV_CODEC_ID_HEVC) {
++        extradata_nal_types    = extradata_nal_types_hevc;
++        nb_extradata_nal_types = FF_ARRAY_ELEMS(extradata_nal_types_hevc);
++    } else {
++        extradata_nal_types    = extradata_nal_types_h264;
++        nb_extradata_nal_types = FF_ARRAY_ELEMS(extradata_nal_types_h264);
++    }
++
++    ret = ff_h2645_packet_split(&s->h2645_pkt, pkt->data, pkt->size,
++                                ctx, 0, 0, ctx->par_in->codec_id, 1, 0);
++    if (ret < 0)
++        return ret;
++
++    for (i = 0; i < s->h2645_pkt.nb_nals; i++) {
++        H2645NAL *nal = &s->h2645_pkt.nals[i];
++        if (val_in_array(extradata_nal_types, nb_extradata_nal_types, nal->type)) {
++            extradata_size += nal->raw_size + 3;
++            if (ctx->par_in->codec_id == AV_CODEC_ID_HEVC) {
++                if (nal->type == HEVC_NAL_SPS) has_sps = 1;
++                if (nal->type == HEVC_NAL_VPS) has_vps = 1;
++            } else {
++                if (nal->type == H264_NAL_SPS) has_sps = 1;
++            }
++        } else if (s->remove) {
++            filtered_size += nal->raw_size + 3;
++        }
++    }
++
++    if (extradata_size &&
++        ((ctx->par_in->codec_id == AV_CODEC_ID_HEVC && has_sps && has_vps) ||
++         (ctx->par_in->codec_id == AV_CODEC_ID_H264 && has_sps))) {
++        AVBufferRef *filtered_buf = NULL;
++        PutByteContext pb_filtered_data, pb_extradata;
++        uint8_t *extradata;
++
++        if (s->remove) {
++            filtered_buf = av_buffer_alloc(filtered_size + AV_INPUT_BUFFER_PADDING_SIZE);
++            if (!filtered_buf) {
++                return AVERROR(ENOMEM);
++            }
++            memset(filtered_buf->data + filtered_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++        }
++
++        extradata = av_malloc(extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
++        if (!extradata) {
++            av_buffer_unref(&filtered_buf);
++            return AVERROR(ENOMEM);
++        }
++        memset(extradata + extradata_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++
++        *data = extradata;
++        *size = extradata_size;
++
++        bytestream2_init_writer(&pb_extradata, extradata, extradata_size);
++        if (s->remove)
++            bytestream2_init_writer(&pb_filtered_data, filtered_buf->data, filtered_size);
++
++        for (i = 0; i < s->h2645_pkt.nb_nals; i++) {
++            H2645NAL *nal = &s->h2645_pkt.nals[i];
++            if (val_in_array(extradata_nal_types, nb_extradata_nal_types,
++                             nal->type)) {
++                bytestream2_put_be24u(&pb_extradata, 1); //startcode
++                bytestream2_put_bufferu(&pb_extradata, nal->raw_data, nal->raw_size);
++            } else if (s->remove) {
++                bytestream2_put_be24u(&pb_filtered_data, 1); // startcode
++                bytestream2_put_bufferu(&pb_filtered_data, nal->raw_data, nal->raw_size);
++            }
++        }
++
++        if (s->remove) {
++            av_buffer_unref(&pkt->buf);
++            pkt->buf  = filtered_buf;
++            pkt->data = filtered_buf->data;
++            pkt->size = filtered_size;
++        }
++    }
++
++    return 0;
++}
++
++static int extract_extradata_vc1(AVBSFContext *ctx, AVPacket *pkt,
++                                 uint8_t **data, int *size)
++{
++    ExtractExtradataContext *s = ctx->priv_data;
++    const uint8_t *ptr = pkt->data, *end = pkt->data + pkt->size;
++    uint32_t state = UINT32_MAX;
++    int has_extradata = 0, extradata_size = 0;
++
++    while (ptr < end) {
++        ptr = avpriv_find_start_code(ptr, end, &state);
++        if (state == VC1_CODE_SEQHDR || state == VC1_CODE_ENTRYPOINT) {
++            has_extradata = 1;
++        } else if (has_extradata && IS_MARKER(state)) {
++            extradata_size = ptr - 4 - pkt->data;
++            break;
++        }
++    }
++
++    if (extradata_size) {
++        *data = av_malloc(extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
++        if (!*data)
++            return AVERROR(ENOMEM);
++
++        memcpy(*data, pkt->data, extradata_size);
++        memset(*data + extradata_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++        *size = extradata_size;
++
++        if (s->remove) {
++            pkt->data += extradata_size;
++            pkt->size -= extradata_size;
++        }
++    }
++
++    return 0;
++}
++
++static int extract_extradata_mpeg12(AVBSFContext *ctx, AVPacket *pkt,
++                                     uint8_t **data, int *size)
++{
++    ExtractExtradataContext *s = ctx->priv_data;
++    uint32_t state = UINT32_MAX;
++    int i, found = 0;
++
++    for (i = 0; i < pkt->size; i++) {
++        state = (state << 8) | pkt->data[i];
++        if (state == 0x1B3)
++            found = 1;
++        else if (found && state != 0x1B5 && state < 0x200 && state >= 0x100) {
++            if (i > 3) {
++                *size = i - 3;
++                *data = av_malloc(*size + AV_INPUT_BUFFER_PADDING_SIZE);
++                if (!*data)
++                    return AVERROR(ENOMEM);
++
++                memcpy(*data, pkt->data, *size);
++                memset(*data + *size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++
++                if (s->remove) {
++                    pkt->data += *size;
++                    pkt->size -= *size;
++                }
++            }
++            break;
++        }
++    }
++    return 0;
++}
++
++static int extract_extradata_mpeg4(AVBSFContext *ctx, AVPacket *pkt,
++                                   uint8_t **data, int *size)
++{
++    ExtractExtradataContext *s = ctx->priv_data;
++    const uint8_t *ptr = pkt->data, *end = pkt->data + pkt->size;
++    uint32_t state = UINT32_MAX;
++
++    while (ptr < end) {
++        ptr = avpriv_find_start_code(ptr, end, &state);
++        if (state == 0x1B3 || state == 0x1B6) {
++            if (ptr - pkt->data > 4) {
++                *size = ptr - 4 - pkt->data;
++                *data = av_malloc(*size + AV_INPUT_BUFFER_PADDING_SIZE);
++                if (!*data)
++                    return AVERROR(ENOMEM);
++
++                memcpy(*data, pkt->data, *size);
++                memset(*data + *size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++
++                if (s->remove) {
++                    pkt->data += *size;
++                    pkt->size -= *size;
++                }
++            }
++            break;
++        }
++    }
++    return 0;
++}
++
++static const struct {
++    enum AVCodecID id;
++    int (*extract)(AVBSFContext *ctx, AVPacket *pkt,
++                   uint8_t **data, int *size);
++} extract_tab[] = {
++    { AV_CODEC_ID_AV1,        extract_extradata_av1     },
++    { AV_CODEC_ID_AVS2,       extract_extradata_mpeg4   },
++    { AV_CODEC_ID_CAVS,       extract_extradata_mpeg4   },
++    { AV_CODEC_ID_H264,       extract_extradata_h2645   },
++    { AV_CODEC_ID_HEVC,       extract_extradata_h2645   },
++    { AV_CODEC_ID_MPEG1VIDEO, extract_extradata_mpeg12  },
++    { AV_CODEC_ID_MPEG2VIDEO, extract_extradata_mpeg12  },
++    { AV_CODEC_ID_MPEG4,      extract_extradata_mpeg4   },
++    { AV_CODEC_ID_VC1,        extract_extradata_vc1     },
++};
++
++static int extract_extradata_init(AVBSFContext *ctx)
++{
++    ExtractExtradataContext *s = ctx->priv_data;
++    int i;
++
++    for (i = 0; i < FF_ARRAY_ELEMS(extract_tab); i++) {
++        if (extract_tab[i].id == ctx->par_in->codec_id) {
++            s->extract = extract_tab[i].extract;
++            break;
++        }
++    }
++    if (!s->extract)
++        return AVERROR_BUG;
++
++    return 0;
++}
++
++static int extract_extradata_filter(AVBSFContext *ctx, AVPacket *pkt)
++{
++    ExtractExtradataContext *s = ctx->priv_data;
++    uint8_t *extradata = NULL;
++    int extradata_size;
++    int ret = 0;
++
++    ret = ff_bsf_get_packet_ref(ctx, pkt);
++    if (ret < 0)
++        return ret;
++
++    ret = s->extract(ctx, pkt, &extradata, &extradata_size);
++    if (ret < 0)
++        goto fail;
++
++    if (extradata) {
++        ret = av_packet_add_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA,
++                                      extradata, extradata_size);
++        if (ret < 0) {
++            av_freep(&extradata);
++            goto fail;
++        }
++    }
++
++    return 0;
++
++fail:
++    av_packet_unref(pkt);
++    return ret;
++}
++
++static void extract_extradata_close(AVBSFContext *ctx)
++{
++    ExtractExtradataContext *s = ctx->priv_data;
++    ff_av1_packet_uninit(&s->av1_pkt);
++    ff_h2645_packet_uninit(&s->h2645_pkt);
++}
++
++static const enum AVCodecID codec_ids[] = {
++    AV_CODEC_ID_AV1,
++    AV_CODEC_ID_AVS2,
++    AV_CODEC_ID_CAVS,
++    AV_CODEC_ID_H264,
++    AV_CODEC_ID_HEVC,
++    AV_CODEC_ID_MPEG1VIDEO,
++    AV_CODEC_ID_MPEG2VIDEO,
++    AV_CODEC_ID_MPEG4,
++    AV_CODEC_ID_VC1,
++    AV_CODEC_ID_NONE,
++};
++
++#define OFFSET(x) offsetof(ExtractExtradataContext, x)
++#define FLAGS (AV_OPT_FLAG_VIDEO_PARAM|AV_OPT_FLAG_BSF_PARAM)
++static const AVOption options[] = {
++    { "remove", "remove the extradata from the bitstream", OFFSET(remove), AV_OPT_TYPE_INT,
++        { .i64 = 0 }, 0, 1, FLAGS },
++    { NULL },
++};
++
++static const AVClass extract_extradata_class = {
++    .class_name = "extract_extradata",
++    .item_name  = av_default_item_name,
++    .option     = options,
++    .version    = LIBAVUTIL_VERSION_INT,
++};
++
++const AVBitStreamFilter ff_extract_extradata_bsf = {
++    .name           = "extract_extradata",
++    .codec_ids      = codec_ids,
++    .priv_data_size = sizeof(ExtractExtradataContext),
++    .priv_class     = &extract_extradata_class,
++    .init           = extract_extradata_init,
++    .filter         = extract_extradata_filter,
++    .close          = extract_extradata_close,
++};
+diff -upPr --minimal a/libavcodec/h264_parser.c b/libavcodec/h264_parser.c
+--- a/libavcodec/h264_parser.c	2020-06-17 18:39:23.000000000 -0000
++++ b/libavcodec/h264_parser.c	2020-08-31 13:15:45.520859763 -0000
 @@ -62,6 +62,7 @@ typedef struct H264ParseContext {
      int parse_last_mb;
      int64_t reference_dts;
@@ -100,7 +4014,7 @@ index 5f9a9c46ef..991e8e82f3 100644
  } H264ParseContext;
  
  
-@@ -109,14 +110,18 @@ static int h264_find_frame_end(H264ParseContext *p, const uint8_t *buf,
+@@ -109,14 +110,18 @@ static int h264_find_frame_end(H264Parse
          } else if (state <= 5) {
              int nalu_type = buf[i] & 0x1F;
              if (nalu_type == H264_NAL_SEI || nalu_type == H264_NAL_SPS ||
@@ -121,7 +4035,17 @@ index 5f9a9c46ef..991e8e82f3 100644
                  continue;
              }
              state = 7;
-@@ -604,7 +609,8 @@ static int h264_parse(AVCodecParserContext *s,
+@@ -589,6 +594,9 @@ static int h264_parse(AVCodecParserConte
+     } else {
+         next = h264_find_frame_end(p, buf, buf_size, avctx);
+ 
++        if (next == END_NOT_FOUND && pc->frame_start_found == 0)
++            s->fetch_timestamp = 1;
++
+         if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {
+             *poutbuf      = NULL;
+             *poutbuf_size = 0;
+@@ -601,7 +609,8 @@ static int h264_parse(AVCodecParserConte
          }
      }
  
@@ -131,7 +4055,7 @@ index 5f9a9c46ef..991e8e82f3 100644
  
      if (avctx->framerate.num)
          avctx->time_base = av_inv_q(av_mul_q(avctx->framerate, (AVRational){avctx->ticks_per_frame, 1}));
-@@ -661,7 +667,7 @@ static int h264_split(AVCodecContext *avctx,
+@@ -658,7 +667,7 @@ static int h264_split(AVCodecContext *av
          if ((state & 0xFFFFFF00) != 0x100)
              break;
          nalu_type = state & 0x1F;
@@ -140,10 +4064,11 @@ index 5f9a9c46ef..991e8e82f3 100644
              has_sps = 1;
          } else if (nalu_type == H264_NAL_PPS)
              has_pps = 1;
-@@ -713,3 +719,23 @@ AVCodecParser ff_h264_parser = {
+@@ -709,4 +718,24 @@ AVCodecParser ff_h264_parser = {
+     .parser_parse   = h264_parse,
      .parser_close   = h264_close,
      .split          = h264_split,
- };
++};
 +
 +static av_cold int init_mvc(AVCodecParserContext *s)
 +{
@@ -163,107 +4088,870 @@ index 5f9a9c46ef..991e8e82f3 100644
 +    .parser_parse   = h264_parse,
 +    .parser_close   = h264_close,
 +    .split          = h264_split,
+ };
+diff -upPr --minimal a/libavcodec/h264_parser.c.orig b/libavcodec/h264_parser.c.orig
+--- a/libavcodec/h264_parser.c.orig	1970-01-01 00:00:00.000000000 -0000
++++ b/libavcodec/h264_parser.c.orig	2020-08-31 13:10:09.192845634 -0000
+@@ -0,0 +1,712 @@
++/*
++ * H.26L/H.264/AVC/JVT/14496-10/... parser
++ * Copyright (c) 2003 Michael Niedermayer <michaelni@gmx.at>
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++/**
++ * @file
++ * H.264 / AVC / MPEG-4 part10 parser.
++ * @author Michael Niedermayer <michaelni@gmx.at>
++ */
++
++#define UNCHECKED_BITSTREAM_READER 1
++
++#include <assert.h>
++#include <stdint.h>
++
++#include "libavutil/avutil.h"
++#include "libavutil/error.h"
++#include "libavutil/log.h"
++#include "libavutil/mem.h"
++#include "libavutil/pixfmt.h"
++
++#include "avcodec.h"
++#include "get_bits.h"
++#include "golomb.h"
++#include "h264.h"
++#include "h264_sei.h"
++#include "h264_ps.h"
++#include "h264data.h"
++#include "internal.h"
++#include "mpegutils.h"
++#include "parser.h"
++
++typedef struct H264ParseContext {
++    ParseContext pc;
++    H264ParamSets ps;
++    H264DSPContext h264dsp;
++    H264POCContext poc;
++    H264SEIContext sei;
++    int is_avc;
++    int nal_length_size;
++    int got_first;
++    int picture_structure;
++    uint8_t parse_history[6];
++    int parse_history_count;
++    int parse_last_mb;
++    int64_t reference_dts;
++    int last_frame_num, last_picture_structure;
++} H264ParseContext;
++
++
++static int h264_find_frame_end(H264ParseContext *p, const uint8_t *buf,
++                               int buf_size, void *logctx)
++{
++    int i, j;
++    uint32_t state;
++    ParseContext *pc = &p->pc;
++
++    int next_avc = p->is_avc ? 0 : buf_size;
++//    mb_addr= pc->mb_addr - 1;
++    state = pc->state;
++    if (state > 13)
++        state = 7;
++
++    if (p->is_avc && !p->nal_length_size)
++        av_log(logctx, AV_LOG_ERROR, "AVC-parser: nal length size invalid\n");
++
++    for (i = 0; i < buf_size; i++) {
++        if (i >= next_avc) {
++            int nalsize = 0;
++            i = next_avc;
++            for (j = 0; j < p->nal_length_size; j++)
++                nalsize = (nalsize << 8) | buf[i++];
++            if (nalsize <= 0 || nalsize > buf_size - i) {
++                av_log(logctx, AV_LOG_ERROR, "AVC-parser: nal size %d remaining %d\n", nalsize, buf_size - i);
++                return buf_size;
++            }
++            next_avc = i + nalsize;
++            state    = 5;
++        }
++
++        if (state == 7) {
++            i += p->h264dsp.startcode_find_candidate(buf + i, next_avc - i);
++            if (i < next_avc)
++                state = 2;
++        } else if (state <= 2) {
++            if (buf[i] == 1)
++                state ^= 5;            // 2->7, 1->4, 0->5
++            else if (buf[i])
++                state = 7;
++            else
++                state >>= 1;           // 2->1, 1->0, 0->0
++        } else if (state <= 5) {
++            int nalu_type = buf[i] & 0x1F;
++            if (nalu_type == H264_NAL_SEI || nalu_type == H264_NAL_SPS ||
++                nalu_type == H264_NAL_PPS || nalu_type == H264_NAL_AUD) {
++                if (pc->frame_start_found) {
++                    i++;
++                    goto found;
++                }
++            } else if (nalu_type == H264_NAL_SLICE || nalu_type == H264_NAL_DPA ||
++                       nalu_type == H264_NAL_IDR_SLICE) {
++                state += 8;
++                continue;
++            }
++            state = 7;
++        } else {
++            unsigned int mb, last_mb = p->parse_last_mb;
++            GetBitContext gb;
++            p->parse_history[p->parse_history_count++] = buf[i];
++
++            init_get_bits(&gb, p->parse_history, 8*p->parse_history_count);
++            mb= get_ue_golomb_long(&gb);
++            if (get_bits_left(&gb) > 0 || p->parse_history_count > 5) {
++                p->parse_last_mb = mb;
++                if (pc->frame_start_found) {
++                    if (mb <= last_mb) {
++                        i -= p->parse_history_count - 1;
++                        p->parse_history_count = 0;
++                        goto found;
++                    }
++                } else
++                    pc->frame_start_found = 1;
++                p->parse_history_count = 0;
++                state = 7;
++            }
++        }
++    }
++    pc->state = state;
++    if (p->is_avc)
++        return next_avc;
++    return END_NOT_FOUND;
++
++found:
++    pc->state             = 7;
++    pc->frame_start_found = 0;
++    if (p->is_avc)
++        return next_avc;
++    return i - (state & 5);
++}
++
++static int scan_mmco_reset(AVCodecParserContext *s, GetBitContext *gb,
++                           void *logctx)
++{
++    H264PredWeightTable pwt;
++    int slice_type_nos = s->pict_type & 3;
++    H264ParseContext *p = s->priv_data;
++    int list_count, ref_count[2];
++
++
++    if (p->ps.pps->redundant_pic_cnt_present)
++        get_ue_golomb(gb); // redundant_pic_count
++
++    if (slice_type_nos == AV_PICTURE_TYPE_B)
++        get_bits1(gb); // direct_spatial_mv_pred
++
++    if (ff_h264_parse_ref_count(&list_count, ref_count, gb, p->ps.pps,
++                                slice_type_nos, p->picture_structure, logctx) < 0)
++        return AVERROR_INVALIDDATA;
++
++    if (slice_type_nos != AV_PICTURE_TYPE_I) {
++        int list;
++        for (list = 0; list < list_count; list++) {
++            if (get_bits1(gb)) {
++                int index;
++                for (index = 0; ; index++) {
++                    unsigned int reordering_of_pic_nums_idc = get_ue_golomb_31(gb);
++
++                    if (reordering_of_pic_nums_idc < 3)
++                        get_ue_golomb_long(gb);
++                    else if (reordering_of_pic_nums_idc > 3) {
++                        av_log(logctx, AV_LOG_ERROR,
++                               "illegal reordering_of_pic_nums_idc %d\n",
++                               reordering_of_pic_nums_idc);
++                        return AVERROR_INVALIDDATA;
++                    } else
++                        break;
++
++                    if (index >= ref_count[list]) {
++                        av_log(logctx, AV_LOG_ERROR,
++                               "reference count %d overflow\n", index);
++                        return AVERROR_INVALIDDATA;
++                    }
++                }
++            }
++        }
++    }
++
++    if ((p->ps.pps->weighted_pred && slice_type_nos == AV_PICTURE_TYPE_P) ||
++        (p->ps.pps->weighted_bipred_idc == 1 && slice_type_nos == AV_PICTURE_TYPE_B))
++        ff_h264_pred_weight_table(gb, p->ps.sps, ref_count, slice_type_nos,
++                                  &pwt, p->picture_structure, logctx);
++
++    if (get_bits1(gb)) { // adaptive_ref_pic_marking_mode_flag
++        int i;
++        for (i = 0; i < MAX_MMCO_COUNT; i++) {
++            MMCOOpcode opcode = get_ue_golomb_31(gb);
++            if (opcode > (unsigned) MMCO_LONG) {
++                av_log(logctx, AV_LOG_ERROR,
++                       "illegal memory management control operation %d\n",
++                       opcode);
++                return AVERROR_INVALIDDATA;
++            }
++            if (opcode == MMCO_END)
++               return 0;
++            else if (opcode == MMCO_RESET)
++                return 1;
++
++            if (opcode == MMCO_SHORT2UNUSED || opcode == MMCO_SHORT2LONG)
++                get_ue_golomb_long(gb); // difference_of_pic_nums_minus1
++            if (opcode == MMCO_SHORT2LONG || opcode == MMCO_LONG2UNUSED ||
++                opcode == MMCO_LONG || opcode == MMCO_SET_MAX_LONG)
++                get_ue_golomb_31(gb);
++        }
++    }
++
++    return 0;
++}
++
++/**
++ * Parse NAL units of found picture and decode some basic information.
++ *
++ * @param s parser context.
++ * @param avctx codec context.
++ * @param buf buffer with field/frame data.
++ * @param buf_size size of the buffer.
++ */
++static inline int parse_nal_units(AVCodecParserContext *s,
++                                  AVCodecContext *avctx,
++                                  const uint8_t * const buf, int buf_size)
++{
++    H264ParseContext *p = s->priv_data;
++    H2645RBSP rbsp = { NULL };
++    H2645NAL nal = { NULL };
++    int buf_index, next_avc;
++    unsigned int pps_id;
++    unsigned int slice_type;
++    int state = -1, got_reset = 0;
++    int q264 = buf_size >=4 && !memcmp("Q264", buf, 4);
++    int field_poc[2];
++    int ret;
++
++    /* set some sane default values */
++    s->pict_type         = AV_PICTURE_TYPE_I;
++    s->key_frame         = 0;
++    s->picture_structure = AV_PICTURE_STRUCTURE_UNKNOWN;
++
++    ff_h264_sei_uninit(&p->sei);
++    p->sei.frame_packing.arrangement_cancel_flag = -1;
++
++    if (!buf_size)
++        return 0;
++
++    av_fast_padded_malloc(&rbsp.rbsp_buffer, &rbsp.rbsp_buffer_alloc_size, buf_size);
++    if (!rbsp.rbsp_buffer)
++        return AVERROR(ENOMEM);
++
++    buf_index     = 0;
++    next_avc      = p->is_avc ? 0 : buf_size;
++    for (;;) {
++        const SPS *sps;
++        int src_length, consumed, nalsize = 0;
++
++        if (buf_index >= next_avc) {
++            nalsize = get_nalsize(p->nal_length_size, buf, buf_size, &buf_index, avctx);
++            if (nalsize < 0)
++                break;
++            next_avc = buf_index + nalsize;
++        } else {
++            buf_index = find_start_code(buf, buf_size, buf_index, next_avc);
++            if (buf_index >= buf_size)
++                break;
++            if (buf_index >= next_avc)
++                continue;
++        }
++        src_length = next_avc - buf_index;
++
++        state = buf[buf_index];
++        switch (state & 0x1f) {
++        case H264_NAL_SLICE:
++        case H264_NAL_IDR_SLICE:
++            // Do not walk the whole buffer just to decode slice header
++            if ((state & 0x1f) == H264_NAL_IDR_SLICE || ((state >> 5) & 0x3) == 0) {
++                /* IDR or disposable slice
++                 * No need to decode many bytes because MMCOs shall not be present. */
++                if (src_length > 60)
++                    src_length = 60;
++            } else {
++                /* To decode up to MMCOs */
++                if (src_length > 1000)
++                    src_length = 1000;
++            }
++            break;
++        }
++        consumed = ff_h2645_extract_rbsp(buf + buf_index, src_length, &rbsp, &nal, 1);
++        if (consumed < 0)
++            break;
++
++        buf_index += consumed;
++
++        ret = init_get_bits8(&nal.gb, nal.data, nal.size);
++        if (ret < 0)
++            goto fail;
++        get_bits1(&nal.gb);
++        nal.ref_idc = get_bits(&nal.gb, 2);
++        nal.type    = get_bits(&nal.gb, 5);
++
++        switch (nal.type) {
++        case H264_NAL_SPS:
++            ff_h264_decode_seq_parameter_set(&nal.gb, avctx, &p->ps, 0);
++            break;
++        case H264_NAL_PPS:
++            ff_h264_decode_picture_parameter_set(&nal.gb, avctx, &p->ps,
++                                                 nal.size_bits);
++            break;
++        case H264_NAL_SEI:
++            ff_h264_sei_decode(&p->sei, &nal.gb, &p->ps, avctx);
++            break;
++        case H264_NAL_IDR_SLICE:
++            s->key_frame = 1;
++
++            p->poc.prev_frame_num        = 0;
++            p->poc.prev_frame_num_offset = 0;
++            p->poc.prev_poc_msb          =
++            p->poc.prev_poc_lsb          = 0;
++        /* fall through */
++        case H264_NAL_SLICE:
++            get_ue_golomb_long(&nal.gb);  // skip first_mb_in_slice
++            slice_type   = get_ue_golomb_31(&nal.gb);
++            s->pict_type = ff_h264_golomb_to_pict_type[slice_type % 5];
++            if (p->sei.recovery_point.recovery_frame_cnt >= 0) {
++                /* key frame, since recovery_frame_cnt is set */
++                s->key_frame = 1;
++            }
++            pps_id = get_ue_golomb(&nal.gb);
++            if (pps_id >= MAX_PPS_COUNT) {
++                av_log(avctx, AV_LOG_ERROR,
++                       "pps_id %u out of range\n", pps_id);
++                goto fail;
++            }
++            if (!p->ps.pps_list[pps_id]) {
++                av_log(avctx, AV_LOG_ERROR,
++                       "non-existing PPS %u referenced\n", pps_id);
++                goto fail;
++            }
++
++            av_buffer_unref(&p->ps.pps_ref);
++            p->ps.pps = NULL;
++            p->ps.sps = NULL;
++            p->ps.pps_ref = av_buffer_ref(p->ps.pps_list[pps_id]);
++            if (!p->ps.pps_ref)
++                goto fail;
++            p->ps.pps = (const PPS*)p->ps.pps_ref->data;
++            p->ps.sps = p->ps.pps->sps;
++            sps       = p->ps.sps;
++
++            // heuristic to detect non marked keyframes
++            if (p->ps.sps->ref_frame_count <= 1 && p->ps.pps->ref_count[0] <= 1 && s->pict_type == AV_PICTURE_TYPE_I)
++                s->key_frame = 1;
++
++            p->poc.frame_num = get_bits(&nal.gb, sps->log2_max_frame_num);
++
++            s->coded_width  = 16 * sps->mb_width;
++            s->coded_height = 16 * sps->mb_height;
++            s->width        = s->coded_width  - (sps->crop_right + sps->crop_left);
++            s->height       = s->coded_height - (sps->crop_top   + sps->crop_bottom);
++            if (s->width <= 0 || s->height <= 0) {
++                s->width  = s->coded_width;
++                s->height = s->coded_height;
++            }
++
++            switch (sps->bit_depth_luma) {
++            case 9:
++                if (sps->chroma_format_idc == 3)      s->format = AV_PIX_FMT_YUV444P9;
++                else if (sps->chroma_format_idc == 2) s->format = AV_PIX_FMT_YUV422P9;
++                else                                  s->format = AV_PIX_FMT_YUV420P9;
++                break;
++            case 10:
++                if (sps->chroma_format_idc == 3)      s->format = AV_PIX_FMT_YUV444P10;
++                else if (sps->chroma_format_idc == 2) s->format = AV_PIX_FMT_YUV422P10;
++                else                                  s->format = AV_PIX_FMT_YUV420P10;
++                break;
++            case 8:
++                if (sps->chroma_format_idc == 3)      s->format = AV_PIX_FMT_YUV444P;
++                else if (sps->chroma_format_idc == 2) s->format = AV_PIX_FMT_YUV422P;
++                else                                  s->format = AV_PIX_FMT_YUV420P;
++                break;
++            default:
++                s->format = AV_PIX_FMT_NONE;
++            }
++
++            avctx->profile = ff_h264_get_profile(sps);
++            avctx->level   = sps->level_idc;
++
++            if (sps->frame_mbs_only_flag) {
++                p->picture_structure = PICT_FRAME;
++            } else {
++                if (get_bits1(&nal.gb)) { // field_pic_flag
++                    p->picture_structure = PICT_TOP_FIELD + get_bits1(&nal.gb); // bottom_field_flag
++                } else {
++                    p->picture_structure = PICT_FRAME;
++                }
++            }
++
++            if (nal.type == H264_NAL_IDR_SLICE)
++                get_ue_golomb_long(&nal.gb); /* idr_pic_id */
++            if (sps->poc_type == 0) {
++                p->poc.poc_lsb = get_bits(&nal.gb, sps->log2_max_poc_lsb);
++
++                if (p->ps.pps->pic_order_present == 1 &&
++                    p->picture_structure == PICT_FRAME)
++                    p->poc.delta_poc_bottom = get_se_golomb(&nal.gb);
++            }
++
++            if (sps->poc_type == 1 &&
++                !sps->delta_pic_order_always_zero_flag) {
++                p->poc.delta_poc[0] = get_se_golomb(&nal.gb);
++
++                if (p->ps.pps->pic_order_present == 1 &&
++                    p->picture_structure == PICT_FRAME)
++                    p->poc.delta_poc[1] = get_se_golomb(&nal.gb);
++            }
++
++            /* Decode POC of this picture.
++             * The prev_ values needed for decoding POC of the next picture are not set here. */
++            field_poc[0] = field_poc[1] = INT_MAX;
++            ret = ff_h264_init_poc(field_poc, &s->output_picture_number, sps,
++                             &p->poc, p->picture_structure, nal.ref_idc);
++            if (ret < 0)
++                goto fail;
++
++            /* Continue parsing to check if MMCO_RESET is present.
++             * FIXME: MMCO_RESET could appear in non-first slice.
++             *        Maybe, we should parse all undisposable non-IDR slice of this
++             *        picture until encountering MMCO_RESET in a slice of it. */
++            if (nal.ref_idc && nal.type != H264_NAL_IDR_SLICE) {
++                got_reset = scan_mmco_reset(s, &nal.gb, avctx);
++                if (got_reset < 0)
++                    goto fail;
++            }
++
++            /* Set up the prev_ values for decoding POC of the next picture. */
++            p->poc.prev_frame_num        = got_reset ? 0 : p->poc.frame_num;
++            p->poc.prev_frame_num_offset = got_reset ? 0 : p->poc.frame_num_offset;
++            if (nal.ref_idc != 0) {
++                if (!got_reset) {
++                    p->poc.prev_poc_msb = p->poc.poc_msb;
++                    p->poc.prev_poc_lsb = p->poc.poc_lsb;
++                } else {
++                    p->poc.prev_poc_msb = 0;
++                    p->poc.prev_poc_lsb =
++                        p->picture_structure == PICT_BOTTOM_FIELD ? 0 : field_poc[0];
++                }
++            }
++
++            if (p->sei.picture_timing.present) {
++                ret = ff_h264_sei_process_picture_timing(&p->sei.picture_timing,
++                                                         sps, avctx);
++                if (ret < 0) {
++                    av_log(avctx, AV_LOG_ERROR, "Error processing the picture timing SEI\n");
++                    p->sei.picture_timing.present = 0;
++                }
++            }
++
++            if (sps->pic_struct_present_flag && p->sei.picture_timing.present) {
++                switch (p->sei.picture_timing.pic_struct) {
++                case H264_SEI_PIC_STRUCT_TOP_FIELD:
++                case H264_SEI_PIC_STRUCT_BOTTOM_FIELD:
++                    s->repeat_pict = 0;
++                    break;
++                case H264_SEI_PIC_STRUCT_FRAME:
++                case H264_SEI_PIC_STRUCT_TOP_BOTTOM:
++                case H264_SEI_PIC_STRUCT_BOTTOM_TOP:
++                    s->repeat_pict = 1;
++                    break;
++                case H264_SEI_PIC_STRUCT_TOP_BOTTOM_TOP:
++                case H264_SEI_PIC_STRUCT_BOTTOM_TOP_BOTTOM:
++                    s->repeat_pict = 2;
++                    break;
++                case H264_SEI_PIC_STRUCT_FRAME_DOUBLING:
++                    s->repeat_pict = 3;
++                    break;
++                case H264_SEI_PIC_STRUCT_FRAME_TRIPLING:
++                    s->repeat_pict = 5;
++                    break;
++                default:
++                    s->repeat_pict = p->picture_structure == PICT_FRAME ? 1 : 0;
++                    break;
++                }
++            } else {
++                s->repeat_pict = p->picture_structure == PICT_FRAME ? 1 : 0;
++            }
++
++            if (p->picture_structure == PICT_FRAME) {
++                s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;
++                if (sps->pic_struct_present_flag && p->sei.picture_timing.present) {
++                    switch (p->sei.picture_timing.pic_struct) {
++                    case H264_SEI_PIC_STRUCT_TOP_BOTTOM:
++                    case H264_SEI_PIC_STRUCT_TOP_BOTTOM_TOP:
++                        s->field_order = AV_FIELD_TT;
++                        break;
++                    case H264_SEI_PIC_STRUCT_BOTTOM_TOP:
++                    case H264_SEI_PIC_STRUCT_BOTTOM_TOP_BOTTOM:
++                        s->field_order = AV_FIELD_BB;
++                        break;
++                    default:
++                        s->field_order = AV_FIELD_PROGRESSIVE;
++                        break;
++                    }
++                } else {
++                    if (field_poc[0] < field_poc[1])
++                        s->field_order = AV_FIELD_TT;
++                    else if (field_poc[0] > field_poc[1])
++                        s->field_order = AV_FIELD_BB;
++                    else
++                        s->field_order = AV_FIELD_PROGRESSIVE;
++                }
++            } else {
++                if (p->picture_structure == PICT_TOP_FIELD)
++                    s->picture_structure = AV_PICTURE_STRUCTURE_TOP_FIELD;
++                else
++                    s->picture_structure = AV_PICTURE_STRUCTURE_BOTTOM_FIELD;
++                if (p->poc.frame_num == p->last_frame_num &&
++                    p->last_picture_structure != AV_PICTURE_STRUCTURE_UNKNOWN &&
++                    p->last_picture_structure != AV_PICTURE_STRUCTURE_FRAME &&
++                    p->last_picture_structure != s->picture_structure) {
++                    if (p->last_picture_structure == AV_PICTURE_STRUCTURE_TOP_FIELD)
++                        s->field_order = AV_FIELD_TT;
++                    else
++                        s->field_order = AV_FIELD_BB;
++                } else {
++                    s->field_order = AV_FIELD_UNKNOWN;
++                }
++                p->last_picture_structure = s->picture_structure;
++                p->last_frame_num = p->poc.frame_num;
++            }
++
++            av_freep(&rbsp.rbsp_buffer);
++            return 0; /* no need to evaluate the rest */
++        }
++    }
++    if (q264) {
++        av_freep(&rbsp.rbsp_buffer);
++        return 0;
++    }
++    /* didn't find a picture! */
++    av_log(avctx, AV_LOG_ERROR, "missing picture in access unit with size %d\n", buf_size);
++fail:
++    av_freep(&rbsp.rbsp_buffer);
++    return -1;
++}
++
++static int h264_parse(AVCodecParserContext *s,
++                      AVCodecContext *avctx,
++                      const uint8_t **poutbuf, int *poutbuf_size,
++                      const uint8_t *buf, int buf_size)
++{
++    H264ParseContext *p = s->priv_data;
++    ParseContext *pc = &p->pc;
++    int next;
++
++    if (!p->got_first) {
++        p->got_first = 1;
++        if (avctx->extradata_size) {
++            ff_h264_decode_extradata(avctx->extradata, avctx->extradata_size,
++                                     &p->ps, &p->is_avc, &p->nal_length_size,
++                                     avctx->err_recognition, avctx);
++        }
++    }
++
++    if (s->flags & PARSER_FLAG_COMPLETE_FRAMES) {
++        next = buf_size;
++    } else {
++        next = h264_find_frame_end(p, buf, buf_size, avctx);
++
++        if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {
++            *poutbuf      = NULL;
++            *poutbuf_size = 0;
++            return buf_size;
++        }
++
++        if (next < 0 && next != END_NOT_FOUND) {
++            av_assert1(pc->last_index + next >= 0);
++            h264_find_frame_end(p, &pc->buffer[pc->last_index + next], -next, avctx); // update state
++        }
++    }
++
++    parse_nal_units(s, avctx, buf, buf_size);
++
++    if (avctx->framerate.num)
++        avctx->time_base = av_inv_q(av_mul_q(avctx->framerate, (AVRational){avctx->ticks_per_frame, 1}));
++    if (p->sei.picture_timing.cpb_removal_delay >= 0) {
++        s->dts_sync_point    = p->sei.buffering_period.present;
++        s->dts_ref_dts_delta = p->sei.picture_timing.cpb_removal_delay;
++        s->pts_dts_delta     = p->sei.picture_timing.dpb_output_delay;
++    } else {
++        s->dts_sync_point    = INT_MIN;
++        s->dts_ref_dts_delta = INT_MIN;
++        s->pts_dts_delta     = INT_MIN;
++    }
++
++    if (s->flags & PARSER_FLAG_ONCE) {
++        s->flags &= PARSER_FLAG_COMPLETE_FRAMES;
++    }
++
++    if (s->dts_sync_point >= 0) {
++        int64_t den = avctx->time_base.den * (int64_t)avctx->pkt_timebase.num;
++        if (den > 0) {
++            int64_t num = avctx->time_base.num * (int64_t)avctx->pkt_timebase.den;
++            if (s->dts != AV_NOPTS_VALUE) {
++                // got DTS from the stream, update reference timestamp
++                p->reference_dts = s->dts - av_rescale(s->dts_ref_dts_delta, num, den);
++            } else if (p->reference_dts != AV_NOPTS_VALUE) {
++                // compute DTS based on reference timestamp
++                s->dts = p->reference_dts + av_rescale(s->dts_ref_dts_delta, num, den);
++            }
++
++            if (p->reference_dts != AV_NOPTS_VALUE && s->pts == AV_NOPTS_VALUE)
++                s->pts = s->dts + av_rescale(s->pts_dts_delta, num, den);
++
++            if (s->dts_sync_point > 0)
++                p->reference_dts = s->dts; // new reference
++        }
++    }
++
++    *poutbuf      = buf;
++    *poutbuf_size = buf_size;
++    return next;
++}
++
++static int h264_split(AVCodecContext *avctx,
++                      const uint8_t *buf, int buf_size)
++{
++    uint32_t state = -1;
++    int has_sps    = 0;
++    int has_pps    = 0;
++    const uint8_t *ptr = buf, *end = buf + buf_size;
++    int nalu_type;
++
++    while (ptr < end) {
++        ptr = avpriv_find_start_code(ptr, end, &state);
++        if ((state & 0xFFFFFF00) != 0x100)
++            break;
++        nalu_type = state & 0x1F;
++        if (nalu_type == H264_NAL_SPS) {
++            has_sps = 1;
++        } else if (nalu_type == H264_NAL_PPS)
++            has_pps = 1;
++        /* else if (nalu_type == 0x01 ||
++         *     nalu_type == 0x02 ||
++         *     nalu_type == 0x05) {
++         *  }
++         */
++        else if ((nalu_type != H264_NAL_SEI || has_pps) &&
++                  nalu_type != H264_NAL_AUD && nalu_type != H264_NAL_SPS_EXT &&
++                  nalu_type != 0x0f) {
++            if (has_sps) {
++                while (ptr - 4 > buf && ptr[-5] == 0)
++                    ptr--;
++                return ptr - 4 - buf;
++            }
++        }
++    }
++
++    return 0;
++}
++
++static void h264_close(AVCodecParserContext *s)
++{
++    H264ParseContext *p = s->priv_data;
++    ParseContext *pc = &p->pc;
++
++    av_freep(&pc->buffer);
++
++    ff_h264_sei_uninit(&p->sei);
++    ff_h264_ps_uninit(&p->ps);
++}
++
++static av_cold int init(AVCodecParserContext *s)
++{
++    H264ParseContext *p = s->priv_data;
++
++    p->reference_dts = AV_NOPTS_VALUE;
++    p->last_frame_num = INT_MAX;
++    ff_h264dsp_init(&p->h264dsp, 8, 1);
++    return 0;
++}
++
++AVCodecParser ff_h264_parser = {
++    .codec_ids      = { AV_CODEC_ID_H264 },
++    .priv_data_size = sizeof(H264ParseContext),
++    .parser_init    = init,
++    .parser_parse   = h264_parse,
++    .parser_close   = h264_close,
++    .split          = h264_split,
 +};
-diff --git a/libavcodec/parsers.c b/libavcodec/parsers.c
-index 33a71de8a0..80b269b324 100644
---- a/libavcodec/parsers.c
-+++ b/libavcodec/parsers.c
+diff -upPr --minimal a/libavcodec/parsers.c b/libavcodec/parsers.c
+--- a/libavcodec/parsers.c	2020-06-17 18:39:23.000000000 -0000
++++ b/libavcodec/parsers.c	2020-08-31 13:15:45.516859763 -0000
 @@ -47,6 +47,7 @@ extern AVCodecParser ff_gsm_parser;
  extern AVCodecParser ff_h261_parser;
  extern AVCodecParser ff_h263_parser;
  extern AVCodecParser ff_h264_parser;
 +extern AVCodecParser ff_h264_mvc_parser;
  extern AVCodecParser ff_hevc_parser;
+ extern AVCodecParser ff_jpeg2000_parser;
  extern AVCodecParser ff_mjpeg_parser;
- extern AVCodecParser ff_mlp_parser;
--- 
-2.20.1
-
-
-From e2cad00490c9cd339b9266e8b9fe5d86afe2abe1 Mon Sep 17 00:00:00 2001
-From: Hendrik Leppkes <h.leppkes@gmail.com>
-Date: Tue, 28 Nov 2017 16:12:12 +0000
-Subject: [PATCH 3/4] h264_parser: force grabing a new timestamp until a frame
- start was found
-
----
- libavcodec/h264_parser.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/libavcodec/h264_parser.c b/libavcodec/h264_parser.c
-index 991e8e82f3..f573bd8629 100644
---- a/libavcodec/h264_parser.c
-+++ b/libavcodec/h264_parser.c
-@@ -597,6 +597,9 @@ static int h264_parse(AVCodecParserContext *s,
-     } else {
-         next = h264_find_frame_end(p, buf, buf_size, avctx);
- 
-+        if (next == END_NOT_FOUND && pc->frame_start_found == 0)
-+            s->fetch_timestamp = 1;
+diff -upPr --minimal a/libavcodec/parsers.c.orig b/libavcodec/parsers.c.orig
+--- a/libavcodec/parsers.c.orig	1970-01-01 00:00:00.000000000 -0000
++++ b/libavcodec/parsers.c.orig	2020-08-31 13:10:09.208845635 -0000
+@@ -0,0 +1,112 @@
++/*
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
 +
-         if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {
-             *poutbuf      = NULL;
-             *poutbuf_size = 0;
--- 
-2.20.1
-
-
-From fc2954e5eba1791443016cdd17fcea280f464db5 Mon Sep 17 00:00:00 2001
-From: popcornmix <popcornmix@gmail.com>
-Date: Mon, 28 May 2018 13:35:36 +0100
-Subject: [PATCH 4/4] fixup
-
----
- libavcodec/extract_extradata_bsf.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
-
-diff --git a/libavcodec/extract_extradata_bsf.c b/libavcodec/extract_extradata_bsf.c
-index 85cf615ffa..b5f1657528 100644
---- a/libavcodec/extract_extradata_bsf.c
-+++ b/libavcodec/extract_extradata_bsf.c
-@@ -138,7 +138,7 @@ static int extract_extradata_h2645(AVBSFContext *ctx, AVPacket *pkt,
-         HEVC_NAL_VPS, HEVC_NAL_SPS, HEVC_NAL_PPS,
-     };
-     static const int extradata_nal_types_h264[] = {
--        H264_NAL_SPS, H264_NAL_PPS,
-+        H264_NAL_SPS, H264_NAL_SUB_SPS, H264_NAL_PPS,
-     };
++#include <stdint.h>
++
++#include "libavutil/thread.h"
++
++#include "avcodec.h"
++
++extern AVCodecParser ff_aac_parser;
++extern AVCodecParser ff_aac_latm_parser;
++extern AVCodecParser ff_ac3_parser;
++extern AVCodecParser ff_adx_parser;
++extern AVCodecParser ff_av1_parser;
++extern AVCodecParser ff_avs2_parser;
++extern AVCodecParser ff_bmp_parser;
++extern AVCodecParser ff_cavsvideo_parser;
++extern AVCodecParser ff_cook_parser;
++extern AVCodecParser ff_dca_parser;
++extern AVCodecParser ff_dirac_parser;
++extern AVCodecParser ff_dnxhd_parser;
++extern AVCodecParser ff_dpx_parser;
++extern AVCodecParser ff_dvaudio_parser;
++extern AVCodecParser ff_dvbsub_parser;
++extern AVCodecParser ff_dvdsub_parser;
++extern AVCodecParser ff_dvd_nav_parser;
++extern AVCodecParser ff_flac_parser;
++extern AVCodecParser ff_g723_1_parser;
++extern AVCodecParser ff_g729_parser;
++extern AVCodecParser ff_gif_parser;
++extern AVCodecParser ff_gsm_parser;
++extern AVCodecParser ff_h261_parser;
++extern AVCodecParser ff_h263_parser;
++extern AVCodecParser ff_h264_parser;
++extern AVCodecParser ff_hevc_parser;
++extern AVCodecParser ff_jpeg2000_parser;
++extern AVCodecParser ff_mjpeg_parser;
++extern AVCodecParser ff_mlp_parser;
++extern AVCodecParser ff_mpeg4video_parser;
++extern AVCodecParser ff_mpegaudio_parser;
++extern AVCodecParser ff_mpegvideo_parser;
++extern AVCodecParser ff_opus_parser;
++extern AVCodecParser ff_png_parser;
++extern AVCodecParser ff_pnm_parser;
++extern AVCodecParser ff_rv30_parser;
++extern AVCodecParser ff_rv40_parser;
++extern AVCodecParser ff_sbc_parser;
++extern AVCodecParser ff_sipr_parser;
++extern AVCodecParser ff_tak_parser;
++extern AVCodecParser ff_vc1_parser;
++extern AVCodecParser ff_vorbis_parser;
++extern AVCodecParser ff_vp3_parser;
++extern AVCodecParser ff_vp8_parser;
++extern AVCodecParser ff_vp9_parser;
++extern AVCodecParser ff_webp_parser;
++extern AVCodecParser ff_xma_parser;
++
++#include "libavcodec/parser_list.c"
++
++static AVOnce av_parser_next_init = AV_ONCE_INIT;
++
++static void av_parser_init_next(void)
++{
++    AVCodecParser *prev = NULL, *p;
++    int i = 0;
++    while ((p = (AVCodecParser*)parser_list[i++])) {
++        if (prev)
++            prev->next = p;
++        prev = p;
++    }
++}
++
++AVCodecParser *av_parser_next(const AVCodecParser *p)
++{
++    ff_thread_once(&av_parser_next_init, av_parser_init_next);
++
++    if (p)
++        return p->next;
++    else
++        return (AVCodecParser*)parser_list[0];
++}
++
++const AVCodecParser *av_parser_iterate(void **opaque)
++{
++    uintptr_t i = (uintptr_t)*opaque;
++    const AVCodecParser *p = parser_list[i];
++
++    if (p)
++        *opaque = (void*)(i + 1);
++
++    return p;
++}
++
++void av_register_codec_parser(AVCodecParser *parser)
++{
++    ff_thread_once(&av_parser_next_init, av_parser_init_next);
++}
+diff -upPr --minimal a/libavcodec/profiles.c b/libavcodec/profiles.c
+--- a/libavcodec/profiles.c	2020-06-17 18:39:23.000000000 -0000
++++ b/libavcodec/profiles.c	2020-08-31 13:15:45.508859762 -0000
+@@ -71,6 +71,7 @@ const AVProfile ff_h264_profiles[] = {
+     { FF_PROFILE_H264_CAVLC_444,            "CAVLC 4:4:4"           },
+     { FF_PROFILE_H264_MULTIVIEW_HIGH,       "Multiview High"        },
+     { FF_PROFILE_H264_STEREO_HIGH,          "Stereo High"           },
++    { FF_PROFILE_H264_MULTIVIEW_HIGH_DEPTH, "Multiview High Depth"  },
+     { FF_PROFILE_UNKNOWN },
+ };
  
-     ExtractExtradataContext *s = ctx->priv_data;
-@@ -169,7 +169,7 @@ static int extract_extradata_h2645(AVBSFContext *ctx, AVPacket *pkt,
-                 if (nal->type == HEVC_NAL_SPS) has_sps = 1;
-                 if (nal->type == HEVC_NAL_VPS) has_vps = 1;
-             } else {
--                if (nal->type == H264_NAL_SPS) has_sps = 1;
-+                if (nal->type == H264_NAL_SPS || nal->type == H264_NAL_SUB_SPS) has_sps = 1;
-             }
-         } else if (s->remove) {
-             filtered_size += nal->raw_size + 3;
-@@ -178,7 +178,7 @@ static int extract_extradata_h2645(AVBSFContext *ctx, AVPacket *pkt,
- 
-     if (extradata_size &&
-         ((ctx->par_in->codec_id == AV_CODEC_ID_HEVC && has_sps && has_vps) ||
--         (ctx->par_in->codec_id == AV_CODEC_ID_H264 && has_sps))) {
-+         ((ctx->par_in->codec_id == AV_CODEC_ID_H264 || ctx->par_in->codec_id == AV_CODEC_ID_H264_MVC) && has_sps))) {
-         AVBufferRef *filtered_buf = NULL;
-         uint8_t *extradata, *filtered_data;
- 
-@@ -334,6 +334,7 @@ static const struct {
-     { AV_CODEC_ID_AVS2,       extract_extradata_mpeg4   },
-     { AV_CODEC_ID_CAVS,       extract_extradata_mpeg4   },
-     { AV_CODEC_ID_H264,       extract_extradata_h2645   },
-+    { AV_CODEC_ID_H264_MVC,   extract_extradata_h2645   },
-     { AV_CODEC_ID_HEVC,       extract_extradata_h2645   },
-     { AV_CODEC_ID_MPEG1VIDEO, extract_extradata_mpeg12  },
-     { AV_CODEC_ID_MPEG2VIDEO, extract_extradata_mpeg12  },
-@@ -401,6 +402,7 @@ static const enum AVCodecID codec_ids[] = {
-     AV_CODEC_ID_AVS2,
-     AV_CODEC_ID_CAVS,
-     AV_CODEC_ID_H264,
-+    AV_CODEC_ID_H264_MVC,
-     AV_CODEC_ID_HEVC,
-     AV_CODEC_ID_MPEG1VIDEO,
-     AV_CODEC_ID_MPEG2VIDEO,
--- 
-2.20.1
-
+diff -upPr --minimal a/libavformat/mpegts.c b/libavformat/mpegts.c
+--- a/libavformat/mpegts.c	2020-06-17 18:39:23.000000000 -0000
++++ b/libavformat/mpegts.c	2020-08-31 13:15:45.508859762 -0000
+@@ -798,7 +798,7 @@ static const StreamType ISO_types[] = {
+ #endif
+     { 0x1b, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_H264       },
+     { 0x1c, AVMEDIA_TYPE_AUDIO, AV_CODEC_ID_AAC        },
+-    { 0x20, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_H264       },
++    { 0x20, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_H264_MVC   },
+     { 0x21, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_JPEG2000   },
+     { 0x24, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_HEVC       },
+     { 0x42, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_CAVS       },
