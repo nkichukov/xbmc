@@ -18,6 +18,11 @@ if(CROSSCOMPILING)
   message(STATUS "CROSS: ${ffmpeg_conf}")
 endif()
 
+if(CORE_PLATFORM_NAME STREQUAL rbpi)
+  string(CONCAT CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux")
+  list(APPEND ffmpeg_conf --enable-rpi)
+endif()
+
 if(CMAKE_C_FLAGS)
   list(APPEND ffmpeg_conf --extra-cflags=${CMAKE_C_FLAGS})
 endif()
@@ -39,16 +44,20 @@ if(CMAKE_BUILD_TYPE STREQUAL Release)
 endif()
 
 if(CORE_SYSTEM_NAME STREQUAL linux OR CORE_SYSTEM_NAME STREQUAL freebsd)
-  list(APPEND ffmpeg_conf --enable-pic)
-  if(ENABLE_VAAPI)
-    list(APPEND ffmpeg_conf --enable-vaapi)
+  if(CORE_PLATFORM_NAME STREQUAL rbpi)
+    list(APPEND ffmpeg_conf --cpu=${CPU} --disable-vaapi --disable-vdpau)
   else()
-    list(APPEND ffmpeg_conf --disable-vaapi)
-  endif()
-  if(ENABLE_VDPAU)
-    list(APPEND ffmpeg_conf --enable-vdpau)
-  else()
-    list(APPEND ffmpeg_conf --disable-vdpau)
+    list(APPEND ffmpeg_conf --enable-pic)
+    if(ENABLE_VAAPI)
+      list(APPEND ffmpeg_conf --enable-vaapi)
+    else()
+      list(APPEND ffmpeg_conf --disable-vaapi)
+    endif()
+    if(ENABLE_VDPAU)
+      list(APPEND ffmpeg_conf --enable-vdpau)
+    else()
+      list(APPEND ffmpeg_conf --disable-vdpau)
+    endif()
   endif()
 elseif(CORE_SYSTEM_NAME STREQUAL android)
   if(CPU MATCHES arm64)
@@ -71,7 +80,7 @@ elseif(CORE_SYSTEM_NAME STREQUAL osx)
                           --disable-securetransport)
 endif()
 
-if(CPU MATCHES arm)
+if(CPU MATCHES arm OR CORE_PLATFORM_NAME STREQUAL rbpi)
   list(APPEND ffmpeg_conf --enable-pic --disable-armv5te --disable-armv6t2)
 elseif(CPU MATCHES mips)
   list(APPEND ffmpeg_conf --disable-mips32r2 --disable-mipsdsp --disable-mipsdspr2)
@@ -89,21 +98,7 @@ else()
   list(APPEND ffmpeg_conf --disable-libdav1d)
 endif()
 
-if(EXTRA_FLAGS)
-  list(APPEND ffmpeg_conf ${EXTRA_FLAGS})
-endif()
-
 message(STATUS "FFMPEG_CONF: ${ffmpeg_conf}")
-
-set(MAKE_COMMAND $(MAKE))
-if(CMAKE_GENERATOR STREQUAL Ninja)
-  set(MAKE_COMMAND make)
-  include(ProcessorCount)
-  ProcessorCount(N)
-  if(NOT N EQUAL 0)
-    set(MAKE_COMMAND make -j${N})
-  endif()
-endif()
 
 include(ExternalProject)
 externalproject_add(ffmpeg
@@ -130,8 +125,7 @@ externalproject_add(ffmpeg
                       --enable-protocol=http
                       --enable-encoder=png
                       --enable-encoder=mjpeg
-                      ${ffmpeg_conf}
-                    BUILD_COMMAND ${MAKE_COMMAND})
+                      ${ffmpeg_conf})
 
 install(CODE "Message(Done)")
 
