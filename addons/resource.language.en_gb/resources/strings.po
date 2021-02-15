@@ -9078,14 +9078,6 @@ msgctxt "#16329"
 msgid "VAAPI - Motion compensated"
 msgstr ""
 
-<<<<<<< HEAD
-#: xbmc/video/dialogs/GUIDialogVideoSettings.cpp
-msgctxt "#16330"
-msgid "Bicubic (0,1.)"
-msgstr ""
-
-#empty strings from id 16331 to 16333
-=======
 #. Description of OSD video settings for deinterlace method with label #16330
 #: xbmc/video/dialogs/GUIDialogVideoSettings.cpp
 msgctxt "#16330"
@@ -9109,7 +9101,6 @@ msgstr ""
 msgctxt "#16333"
 msgid "MMAL - Bob (half)"
 msgstr ""
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
 
 #. Description of OSD video settings for deinterlace method with label #16334
 #: xbmc/video/dialogs/GUIDialogVideoSettings.cpp
@@ -20311,14 +20302,6 @@ msgctxt "#36433"
 msgid "When enabled, VAAPI render method is preferred and the CPU has less load. If you experience hangs, disable this option."
 msgstr ""
 
-<<<<<<< HEAD
-#: system/settings/settings.xml
-msgctxt "#36434"
-msgid "If enabled, switch to the channel with the programme to remind when auto-closing the reminder popup."
-msgstr ""
-
-#empty string with id 36435
-=======
 #. Description of setting "Enable MMAL hardware decoding of video files"
 #: system/settings/settings.xml
 msgctxt "#36434"
@@ -20330,7 +20313,6 @@ msgstr ""
 msgctxt "#36435"
 msgid "Use VideoPlayer for decoding of video files with MMAL acceleration."
 msgstr ""
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
 
 #. Description for setting #310: "Keyboard layouts"
 #: system/settings/settings.xml
@@ -20620,19 +20602,11 @@ msgctxt "#36546"
 msgid "Sets the visual depth of subtitles for stereoscopic 3D videos. The higher the value, the closer the subtitles will appear to the viewer."
 msgstr ""
 
-<<<<<<< HEAD
-#empty string with id 36547
-
-#. Description of setting with label #37021 "Set GUI resolution limit"
-#: system/settings/android.xml
-=======
 #: system/settings/rbp.xml
 msgctxt "#36547"
 msgid "Use higher quality textures for covers and fanart (uses more memory)"
 msgstr ""
 
-#: system/settings/rbp.xml
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
 #: system/settings/gbm.xml
 msgctxt "#36548"
 msgid "Limits resolution of GUI to save memory. Does not affect video playback. Requires restart."
@@ -21282,11 +21256,6 @@ msgctxt "#37016"
 msgid "Select this option if your receiver is capable of decoding Dolby Digital Plus (E-AC3) streams."
 msgstr ""
 
-<<<<<<< HEAD
-#empty strings from id 37017 to 37020
-
-#: system/settings/android.xml
-=======
 #: system/settings/rbp.xml
 msgctxt "#37017"
 msgid "Dual audio output"
@@ -21304,8 +21273,6 @@ msgctxt "#37020"
 msgid "Enable higher colour depth artwork"
 msgstr ""
 
-#: system/settings/rbp.xml
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
 #: system/settings/gbm.xml
 msgctxt "#37021"
 msgid "Set GUI resolution limit"
@@ -21321,14 +21288,10 @@ msgctxt "#37023"
 msgid "Do you wish to stop playback on the remote device?"
 msgstr ""
 
-<<<<<<< HEAD
-#empty string with id 37024
-=======
 #: system/settings/rbp.xml
 msgctxt "#37024"
 msgid "Select this if the audio out connection only supports multichannel audio as Dolby Digital 5.1 (AC3), this allows multichannel audio such as AAC 5.1 or FLAC 5.1 to be listened to in 5.1 surround sound. Note: Not recommended on Pi as this requires a lot of CPU."
 msgstr ""
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
 
 #: system/settings/settings.xml
 msgctxt "#37025"

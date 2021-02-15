@@ -80,9 +80,6 @@ bool CTextureCacheJob::CacheTexture(CTexture** out_texture)
   else if (m_details.hash == m_oldHash)
     return true;
 
-<<<<<<< HEAD
-  CTexture* texture = LoadImage(image, width, height, additional_info, true);
-=======
 #if defined(TARGET_RASPBERRY_PI)
   if (COMXImage::CreateThumb(image, width, height, additional_info, CTextureCache::GetCachedPath(m_cachePath + ".jpg")))
   {
@@ -98,7 +95,6 @@ bool CTextureCacheJob::CacheTexture(CTexture** out_texture)
   }
 #endif
   CBaseTexture *texture = LoadImage(image, width, height, additional_info, true);
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
   if (texture)
   {
     if (texture->HasAlpha())

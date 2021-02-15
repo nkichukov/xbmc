@@ -51,13 +51,8 @@ if(ALSA_FOUND)
                       Utils/AEELDParser.cpp)
   list(APPEND HEADERS Sinks/AESinkALSA.h
                       Utils/AEELDParser.h)
-<<<<<<< HEAD
-
-  if(NOT "x11" IN_LIST CORE_PLATFORM_NAME_LC)
-=======
                       
   if(NOT CORE_PLATFORM_NAME_LC STREQUAL x11)
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
     list(APPEND SOURCES Sinks/alsa/ALSAHControlMonitor.cpp)
     list(APPEND HEADERS Sinks/alsa/ALSAHControlMonitor.h)
   endif()

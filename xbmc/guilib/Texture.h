@@ -136,8 +136,6 @@ protected:
   TEXTURE_SCALING m_scalingMethod = TEXTURE_SCALING::LINEAR;
   bool m_bCacheMemory = false;
 };
-<<<<<<< HEAD
-=======
 
 #if defined(TARGET_RASPBERRY_PI)
 #include "TexturePi.h"
@@ -149,4 +147,3 @@ protected:
 #include "TextureDX.h"
 #define CTexture CDXTexture
 #endif
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal

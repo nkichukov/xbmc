@@ -447,8 +447,6 @@ case $host in
 esac
 
 case $use_platform in
-<<<<<<< HEAD
-=======
   gbm|wayland)
     if test "$platform_os" != "linux"; then
       AC_MSG_ERROR([$use_platform is only supported on the Linux platform])
@@ -479,7 +477,6 @@ case $use_platform in
      platform_cxxflags="-fPIC -mcpu=cortex-a53 -mfloat-abi=hard -mfpu=neon-fp-armv8 -mvectorize-with-neon-quad"
      platform_ldflags="-lpthread"
      ;;
->>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
   tvos)
     platform_cflags+=" -fembed-bitcode"
     platform_cxxflags+=" -fembed-bitcode"
