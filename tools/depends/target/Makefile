@@ -60,6 +60,7 @@ endif
 
 ALSA_LIB=
 ifeq ($(OS),linux)
+<<<<<<< HEAD
   DEPENDS += dbus libuuid alsa-lib libdrm libxkbcommon libinput libudev libevdev mtdev wayland waylandpp wayland-protocols linux-system-x11-libs
   ALSA_LIB = alsa-lib
   LIBUUID = libuuid
@@ -70,6 +71,26 @@ ifeq ($(OS),linux)
   else
     WAYLANDPP_DEPS += mesa
     DEPENDS += mesa
+=======
+  DEPENDS += dbus libuuid
+  # not for raspberry pi or gbm
+  ifeq (,$(filter $(TARGET_PLATFORM),raspberry-pi gbm))
+    DEPENDS += linux-system-libs
+    WAYLANDPP_DEPS += linux-system-libs
+  endif
+  DEPENDS += alsa-lib
+  ALSA_LIB = alsa-lib
+  LIBUUID = libuuid
+  ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM),raspberry-pi gbm))
+    DEPENDS += libxkbcommon libinput libudev libevdev mtdev
+  endif
+  ifeq ($(TARGET_PLATFORM),gbm)
+    DEPENDS += libdrm mesa
+    ifeq ($(CPU),x86_64)
+      DEPENDS += libva
+      LIBVA = libva
+    endif
+>>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
   endif
 
   MESA_DEPS += wayland-protocols wayland linux-system-x11-libs

@@ -18,9 +18,14 @@
 #include "settings/SettingsComponent.h"
 #include "threads/SingleLock.h"
 #include "utils/MathUtils.h"
+<<<<<<< HEAD
 #include "utils/log.h"
 
 #include "system.h"
+=======
+#include "cores/AudioEngine/Interfaces/AE.h"
+#include "cores/AudioEngine/Utils/AEUtil.h"
+>>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
 #ifdef TARGET_RASPBERRY_PI
 #include "platform/linux/RBP.h"
 #endif

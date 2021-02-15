@@ -7,12 +7,17 @@ ifeq ($(CROSS_COMPILING),yes)
   DEPS = $(TOOLCHAIN_FILE) $(abs_top_srcdir)/target/config-binaddons.site $(abs_top_srcdir)/target/Toolchain_binaddons.cmake $(CONFIG_SUB) $(CONFIG_GUESS)
   TOOLCHAIN = -DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE)
   ifeq ($(OS),linux)
+<<<<<<< HEAD
     DEPS += linux-system-libs linux-system-x11-libs
 
     ifeq ($(RENDER_SYSTEM),gl)
       DEPS += linux-system-gl-libs
     else
       DEPS += linux-system-gles-libs
+=======
+    ifneq ($(TARGET_PLATFORM),raspberry-pi)
+      DEPS += linux-system-libs
+>>>>>>> parent of 811bd4933f... Merge pull request #16321 from lrusak/rpi-removal
     endif
   endif
 endif
