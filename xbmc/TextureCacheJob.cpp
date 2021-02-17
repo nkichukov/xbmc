@@ -22,6 +22,9 @@
 #include "FileItem.h"
 #include "music/MusicThumbLoader.h"
 #include "music/tags/MusicInfoTag.h"
+#if defined(TARGET_RASPBERRY_PI)
+#include "cores/omxplayer/OMXImage.h"
+#endif
 
 #include <inttypes.h>
 

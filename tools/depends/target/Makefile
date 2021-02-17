@@ -60,7 +60,7 @@ endif
 
 ALSA_LIB=
 ifeq ($(OS),linux)
-  DEPENDS += dbus libuuid alsa-lib libdrm libxkbcommon libinput libudev libevdev mtdev wayland waylandpp wayland-protocols linux-system-x11-libs
+  DEPENDS += dbus libuuid alsa-lib libinput libudev libevdev mtdev linux-system-libs
   ALSA_LIB = alsa-lib
   LIBUUID = libuuid
 

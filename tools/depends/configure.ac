@@ -360,6 +360,14 @@ case $host in
     platform_cxxflags="-no-cpp-precomp"
 
     case $use_platform in
+      raspberry-pi3)
+        target_platform=raspberry-pi
+        use_cpu=cortex-a53
+        ffmpeg_options_default="--cpu=cortex-a53"
+        platform_cflags="-fPIC -mcpu=cortex-a53 -mfloat-abi=hard -mfpu=neon-fp-armv8 -mvectorize-with-neon-quad"
+        platform_cxxflags="-fPIC -mcpu=cortex-a53 -mfloat-abi=hard -mfpu=neon-fp-armv8 -mvectorize-with-neon-quad"
+        platform_ldflags="-lpthread"
+      ;;
       tvos)
         target_platform=appletvos
         platform_os="darwin_embedded"
@@ -461,6 +469,32 @@ case $use_platform in
   *)
     AC_MSG_ERROR(unsupported platform ($use_platform))
 esac
+
+if test "$target_platform" = "raspberry-pi" ; then
+  if test -d "${use_firmware}/opt/vc/include"; then
+    :
+  else
+    AC_MSG_ERROR([Raspberry Pi firmware not found])
+  fi
+  use_arch="arm"
+  use_hardcoded_tables="yes"
+  ARCH="arm"
+  cross_compiling="yes"
+  use_host="arm-linux-gnueabihf"
+  deps_dir="$use_platform-$build_type"
+  platform_cflags+=" -pipe -mabi=aapcs-linux -Wno-psabi \
+   -Wa,-mno-warn-deprecated -Wno-deprecated-declarations \
+   -isystem${use_firmware}/opt/vc/include \
+   -isystem${use_firmware}/opt/vc/include/interface/vcos/pthreads \
+   -isystem${use_firmware}/opt/vc/include/interface/vmcs_host/linux"
+  platform_cxxflags+=" -pipe -mabi=aapcs-linux -Wno-psabi \
+   -Wa,-mno-warn-deprecated -Wno-deprecated-declarations \
+   -isystem${use_firmware}/opt/vc/include \
+   -isystem${use_firmware}/opt/vc/include/interface/vcos/pthreads \
+   -isystem${use_firmware}/opt/vc/include/interface/vmcs_host/linux"
+  platform_ldflags+=" -L${use_firmware}/opt/vc/lib -lEGL -lGLESv2 -lbcm_host -lvcos \
+   -lvchiq_arm"
+fi
 
 XBMC_SETUP_ARCH_DEFINES()
 

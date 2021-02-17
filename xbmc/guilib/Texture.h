@@ -21,6 +21,11 @@ enum class TEXTURE_SCALING
   NEAREST,
 };
 
+#if defined(TARGET_RASPBERRY_PI)
+#include "TexturePi.h"
+#define CTexture CPiTexture
+#endif
+
 /*!
 \ingroup textures
 \brief Base texture class, subclasses of which depend on the render spec (DX, GL etc.)

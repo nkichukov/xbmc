@@ -7,8 +7,9 @@ ifeq ($(CROSS_COMPILING),yes)
   DEPS = $(TOOLCHAIN_FILE) $(abs_top_srcdir)/target/config-binaddons.site $(abs_top_srcdir)/target/Toolchain_binaddons.cmake $(CONFIG_SUB) $(CONFIG_GUESS)
   TOOLCHAIN = -DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE)
   ifeq ($(OS),linux)
-    DEPS += linux-system-libs linux-system-x11-libs
-
+    ifneq ($(TARGET_PLATFORM),raspberry-pi)
+      DEPS += linux-system-libs linux-system-x11-libs
+    endif
     ifeq ($(RENDER_SYSTEM),gl)
       DEPS += linux-system-gl-libs
     else
