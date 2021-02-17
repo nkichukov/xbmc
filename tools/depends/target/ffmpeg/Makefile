@@ -1,6 +1,10 @@
 include ../../Makefile.include
 include FFMPEG-VERSION
-DEPS= ../../Makefile.include FFMPEG-VERSION Makefile
+DEPS= ../../Makefile.include FFMPEG-VERSION Makefile \
+  pfcd_hevc_optimisations.patch \
+  0001-ffmpeg-Call-get_format-to-fix-an-issue-with-MMAL-ren.patch \
+  0001-mpeg4video-Signal-unsupported-GMC-with-more-than-one.patch \
+  added_upstream_mvc_patches.patch \
 
 # set to "yes" to enable patching
 # we don't apply patches until we move to a vanilla ffmpeg tarball
@@ -24,8 +28,13 @@ ffmpg_config += --enable-encoder=png --enable-encoder=mjpeg
 ffmpg_config += --enable-libdav1d
 ffmpg_config += $(FFMPEG_CONFIGURE_OPTIONS)
 
+ARCH = $(CPU)
+ifeq ($(CPU), cortex-a7)
+  ARCH = arm
+endif
+
 ifeq ($(CROSS_COMPILING), yes)
-  ffmpg_config += --arch=$(CPU) --enable-cross-compile
+  ffmpg_config += --arch=$(ARCH) --enable-cross-compile
 endif
 ifeq ($(OS), linux)
   ffmpg_config += --target-os=$(OS)
@@ -69,6 +78,8 @@ ifeq ($(Configuration), Release)
   ffmpg_config += --disable-debug
 endif
 
+ffmpg_config += --enable-rpi --extra-cflags=-mfpu=neon
+
 all: .installed-$(PLATFORM)
 
 $(TARBALLS_LOCATION)/$(ARCHIVE):
@@ -78,6 +89,10 @@ $(PLATFORM): $(TARBALLS_LOCATION)/$(ARCHIVE) $(DEPS)
 	rm -rf $(PLATFORM); mkdir -p $(PLATFORM)
 	cd $(PLATFORM); $(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
 	cd $(PLATFORM); sed -i".bak" -e "s%pkg_config_default=pkg-config%export PKG_CONFIG_LIBDIR=$(PREFIX)/lib/pkgconfig \&\& pkg_config_default=$(NATIVEPREFIX)/bin/pkg-config%" configure
+	cd $(PLATFORM); patch -p1 < ../pfcd_hevc_optimisations.patch
+	cd $(PLATFORM); patch -p1 < ../0001-ffmpeg-Call-get_format-to-fix-an-issue-with-MMAL-ren.patch
+	cd $(PLATFORM); patch -p1 < ../0001-mpeg4video-Signal-unsupported-GMC-with-more-than-one.patch
+	cd $(PLATFORM); patch -p1 < ../added_upstream_mvc_patches.patch
 	cd $(PLATFORM);\
 	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" \
 	./configure $(ffmpg_config)

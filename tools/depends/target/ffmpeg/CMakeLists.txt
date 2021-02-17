@@ -18,6 +18,11 @@ if(CROSSCOMPILING)
   message(STATUS "CROSS: ${ffmpeg_conf}")
 endif()
 
+if(CORE_PLATFORM_NAME STREQUAL rbpi)
+  string(CONCAT CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux")
+  list(APPEND ffmpeg_conf --enable-rpi)
+endif()
+
 if(CMAKE_C_FLAGS)
   list(APPEND ffmpeg_conf --extra-cflags=${CMAKE_C_FLAGS})
 endif()
@@ -91,10 +96,6 @@ if(ENABLE_DAV1D)
   set(pkgconf_path "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}")
 else()
   list(APPEND ffmpeg_conf --disable-libdav1d)
-endif()
-
-if(EXTRA_FLAGS)
-  list(APPEND ffmpeg_conf ${EXTRA_FLAGS})
 endif()
 
 message(STATUS "FFMPEG_CONF: ${ffmpeg_conf}")
