@@ -6,7 +6,7 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include "TextureGL.h"
+#include "Texture.h"
 
 #include "ServiceBroker.h"
 #include "guilib/TextureManager.h"

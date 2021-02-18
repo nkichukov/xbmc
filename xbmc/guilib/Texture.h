@@ -11,6 +11,11 @@
 #include "XBTF.h"
 #include "guilib/imagefactory.h"
 
+class CTexture;
+class CGLTexture;
+class CPiTexture;
+class CDXTexture;
+
 #pragma pack(1)
 struct COLOR {unsigned char b,g,r,x;};	// Windows GDI expects 4bytes per color
 #pragma pack()
@@ -20,11 +25,6 @@ enum class TEXTURE_SCALING
   LINEAR,
   NEAREST,
 };
-
-#if defined(TARGET_RASPBERRY_PI)
-#include "TexturePi.h"
-#define CTexture CPiTexture
-#endif
 
 /*!
 \ingroup textures
@@ -141,3 +141,14 @@ protected:
   TEXTURE_SCALING m_scalingMethod = TEXTURE_SCALING::LINEAR;
   bool m_bCacheMemory = false;
 };
+
+#if defined(TARGET_RASPBERRY_PI)
+#include "TexturePi.h"
+#define CTexture CPiTexture
+#elif defined(HAS_GL) || defined(HAS_GLES)
+#include "TextureGL.h"
+#define CTexture CGLTexture
+#elif defined(HAS_DX)
+#include "TextureDX.h"
+#define CTexture CDXTexture
+#endif
