@@ -15,7 +15,7 @@
 
 #include "system_gl.h"
 
-class CGUIFontTTFGL : public CGUIFontTTF
+class CGUIFontTTFGL : public CGUIFontTTFBase
 {
 public:
   explicit CGUIFontTTFGL(const std::string& strFileName);
