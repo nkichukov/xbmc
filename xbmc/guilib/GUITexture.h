@@ -60,13 +60,13 @@ public:
   std::string filename;        // main texture file
 };
 
-class CGUITexture
+class CGUITextureBase
 {
 public:
-  virtual ~CGUITexture() = default;
-  static CGUITexture* CreateTexture(
+  virtual ~CGUITextureBase() = default;
+  static CGUITextureBase* CreateTexture(
       float posX, float posY, float width, float height, const CTextureInfo& texture);
-  virtual CGUITexture* Clone() const = 0;
+  virtual CGUITextureBase* Clone() const = 0;
 
   static void DrawQuad(const CRect& coords,
                        UTILS::Color color,
@@ -108,8 +108,8 @@ public:
   bool ReadyToRender() const;
 
 protected:
-  CGUITexture(float posX, float posY, float width, float height, const CTextureInfo& texture);
-  CGUITexture(const CGUITexture& left);
+  CGUITextureBase(float posX, float posY, float width, float height, const CTextureInfo& texture);
+  CGUITextureBase(const CGUITextureBase& left);
 
   bool CalculateSize();
   void LoadDiffuseImage();
@@ -175,3 +175,14 @@ protected:
   CTextureArray m_diffuse;
   CTextureArray m_texture;
 };
+
+#if defined(HAS_GL)
+#include "GUITextureGL.h"
+#define CGUITexture CGUITextureGL
+#elif defined(HAS_GLES)
+#include "GUITextureGLES.h"
+#define CGUITexture CGUITextureGLES
+#elif defined(HAS_DX)
+#include "GUITextureD3D.h"
+#define CGUITexture CGUITextureD3D
+#endif

@@ -17,7 +17,7 @@
 
 using namespace DirectX;
 
-CGUITexture* CGUITexture::CreateTexture(
+CGUITextureBase* CGUITextureBase::CreateTexture(
     float posX, float posY, float width, float height, const CTextureInfo& texture)
 {
   return new CGUITextureD3D(posX, posY, width, height, texture);
@@ -25,7 +25,7 @@ CGUITexture* CGUITexture::CreateTexture(
 
 CGUITextureD3D::CGUITextureD3D(
     float posX, float posY, float width, float height, const CTextureInfo& texture)
-  : CGUITexture(posX, posY, width, height, texture)
+  : CGUITextureBase(posX, posY, width, height, texture)
 {
 }
 
@@ -132,10 +132,10 @@ void CGUITextureD3D::Draw(float *x, float *y, float *z, const CRect &texture, co
   pGUIShader->DrawQuad(verts[0], verts[1], verts[2], verts[3]);
 }
 
-void CGUITexture::DrawQuad(const CRect& rect,
-                           UTILS::Color color,
-                           CTexture* texture,
-                           const CRect* texCoords)
+void CGUITextureBase::DrawQuad(const CRect& rect,
+                               UTILS::Color color,
+                               CTexture* texture,
+                               const CRect* texCoords)
 {
   unsigned numViews = 0;
   ID3D11ShaderResourceView* views = nullptr;

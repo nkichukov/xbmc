@@ -18,7 +18,7 @@
 
 #include <cstddef>
 
-CGUITexture* CGUITexture::CreateTexture(
+CGUITextureBase* CGUITextureBase::CreateTexture(
     float posX, float posY, float width, float height, const CTextureInfo& texture)
 {
   return new CGUITextureGL(posX, posY, width, height, texture);
@@ -26,7 +26,7 @@ CGUITexture* CGUITexture::CreateTexture(
 
 CGUITextureGL::CGUITextureGL(
     float posX, float posY, float width, float height, const CTextureInfo& texture)
-  : CGUITexture(posX, posY, width, height, texture)
+  : CGUITextureBase(posX, posY, width, height, texture)
 {
   m_renderSystem = dynamic_cast<CRenderSystemGL*>(CServiceBroker::GetRenderSystem());
 }
@@ -245,10 +245,10 @@ void CGUITextureGL::Draw(float *x, float *y, float *z, const CRect &texture, con
   }
 }
 
-void CGUITexture::DrawQuad(const CRect& rect,
-                           UTILS::Color color,
-                           CTexture* texture,
-                           const CRect* texCoords)
+void CGUITextureBase::DrawQuad(const CRect& rect,
+                               UTILS::Color color,
+                               CTexture* texture,
+                               const CRect* texCoords)
 {
   CRenderSystemGL *renderSystem = dynamic_cast<CRenderSystemGL*>(CServiceBroker::GetRenderSystem());
   if (texture)

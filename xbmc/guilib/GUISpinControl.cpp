@@ -32,13 +32,14 @@ CGUISpinControl::CGUISpinControl(int parentID,
                                  const CLabelInfo& labelInfo,
                                  int iType)
   : CGUIControl(parentID, controlID, posX, posY, width, height),
-    m_imgspinUp(CGUITexture::CreateTexture(posX, posY, width, height, textureUp)),
-    m_imgspinDown(CGUITexture::CreateTexture(posX, posY, width, height, textureDown)),
-    m_imgspinUpFocus(CGUITexture::CreateTexture(posX, posY, width, height, textureUpFocus)),
-    m_imgspinDownFocus(CGUITexture::CreateTexture(posX, posY, width, height, textureDownFocus)),
-    m_imgspinUpDisabled(CGUITexture::CreateTexture(posX, posY, width, height, textureUpDisabled)),
+    m_imgspinUp(CGUITextureBase::CreateTexture(posX, posY, width, height, textureUp)),
+    m_imgspinDown(CGUITextureBase::CreateTexture(posX, posY, width, height, textureDown)),
+    m_imgspinUpFocus(CGUITextureBase::CreateTexture(posX, posY, width, height, textureUpFocus)),
+    m_imgspinDownFocus(CGUITextureBase::CreateTexture(posX, posY, width, height, textureDownFocus)),
+    m_imgspinUpDisabled(
+        CGUITextureBase::CreateTexture(posX, posY, width, height, textureUpDisabled)),
     m_imgspinDownDisabled(
-        CGUITexture::CreateTexture(posX, posY, width, height, textureDownDisabled)),
+        CGUITextureBase::CreateTexture(posX, posY, width, height, textureDownDisabled)),
     m_label(posX, posY, width, height, labelInfo)
 {
   m_bReverse = false;

@@ -58,7 +58,7 @@ public:
   virtual void SetRange(int iStart, int iEnd);
   virtual void SetFloatRange(float fStart, float fEnd);
   bool OnMessage(CGUIMessage& message) override;
-  bool ProcessSelector(CGUITexture* nib,
+  bool ProcessSelector(CGUITextureBase* nib,
                        unsigned int currentTime,
                        float fScale,
                        RangeSelector selector);
@@ -98,11 +98,11 @@ protected:
    */
   void SendClick();
 
-  std::unique_ptr<CGUITexture> m_guiBackground;
-  std::unique_ptr<CGUITexture> m_guiSelectorLower;
-  std::unique_ptr<CGUITexture> m_guiSelectorUpper;
-  std::unique_ptr<CGUITexture> m_guiSelectorLowerFocus;
-  std::unique_ptr<CGUITexture> m_guiSelectorUpperFocus;
+  std::unique_ptr<CGUITextureBase> m_guiBackground;
+  std::unique_ptr<CGUITextureBase> m_guiSelectorLower;
+  std::unique_ptr<CGUITextureBase> m_guiSelectorUpper;
+  std::unique_ptr<CGUITextureBase> m_guiSelectorLowerFocus;
+  std::unique_ptr<CGUITextureBase> m_guiSelectorUpperFocus;
   int m_iType;
 
   bool m_rangeSelection;

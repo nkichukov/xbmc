@@ -35,11 +35,13 @@ CGUISliderControl::CGUISliderControl(int parentID,
                                      int iType,
                                      ORIENTATION orientation)
   : CGUIControl(parentID, controlID, posX, posY, width, height),
-    m_guiBackground(CGUITexture::CreateTexture(posX, posY, width, height, backGroundTexture)),
-    m_guiSelectorLower(CGUITexture::CreateTexture(posX, posY, width, height, nibTexture)),
-    m_guiSelectorUpper(CGUITexture::CreateTexture(posX, posY, width, height, nibTexture)),
-    m_guiSelectorLowerFocus(CGUITexture::CreateTexture(posX, posY, width, height, nibTextureFocus)),
-    m_guiSelectorUpperFocus(CGUITexture::CreateTexture(posX, posY, width, height, nibTextureFocus))
+    m_guiBackground(CGUITextureBase::CreateTexture(posX, posY, width, height, backGroundTexture)),
+    m_guiSelectorLower(CGUITextureBase::CreateTexture(posX, posY, width, height, nibTexture)),
+    m_guiSelectorUpper(CGUITextureBase::CreateTexture(posX, posY, width, height, nibTexture)),
+    m_guiSelectorLowerFocus(
+        CGUITextureBase::CreateTexture(posX, posY, width, height, nibTextureFocus)),
+    m_guiSelectorUpperFocus(
+        CGUITextureBase::CreateTexture(posX, posY, width, height, nibTextureFocus))
 {
   m_iType = iType;
   m_rangeSelection = false;
@@ -109,7 +111,7 @@ void CGUISliderControl::Process(unsigned int currentTime, CDirtyRegionList &dirt
   dirty |= m_guiBackground->SetWidth(m_width);
   dirty |= m_guiBackground->Process(currentTime);
 
-  CGUITexture* nibLower =
+  CGUITextureBase* nibLower =
       (IsActive() && m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorLower)
           ? m_guiSelectorLowerFocus.get()
           : m_guiSelectorLower.get();
@@ -123,7 +125,7 @@ void CGUISliderControl::Process(unsigned int currentTime, CDirtyRegionList &dirt
   dirty |= ProcessSelector(nibLower, currentTime, fScale, RangeSelectorLower);
   if (m_rangeSelection)
   {
-    CGUITexture* nibUpper =
+    CGUITextureBase* nibUpper =
         (IsActive() && m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorUpper)
             ? m_guiSelectorUpperFocus.get()
             : m_guiSelectorUpper.get();
@@ -142,7 +144,7 @@ void CGUISliderControl::Process(unsigned int currentTime, CDirtyRegionList &dirt
   CGUIControl::Process(currentTime, dirtyregions);
 }
 
-bool CGUISliderControl::ProcessSelector(CGUITexture* nib,
+bool CGUISliderControl::ProcessSelector(CGUITextureBase* nib,
                                         unsigned int currentTime,
                                         float fScale,
                                         RangeSelector selector)
@@ -197,14 +199,14 @@ bool CGUISliderControl::ProcessSelector(CGUITexture* nib,
 void CGUISliderControl::Render()
 {
   m_guiBackground->Render();
-  CGUITexture* nibLower =
+  CGUITextureBase* nibLower =
       (IsActive() && m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorLower)
           ? m_guiSelectorLowerFocus.get()
           : m_guiSelectorLower.get();
   nibLower->Render();
   if (m_rangeSelection)
   {
-    CGUITexture* nibUpper =
+    CGUITextureBase* nibUpper =
         (IsActive() && m_bHasFocus && !IsDisabled() && m_currentSelector == RangeSelectorUpper)
             ? m_guiSelectorUpperFocus.get()
             : m_guiSelectorUpper.get();

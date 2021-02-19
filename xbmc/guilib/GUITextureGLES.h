@@ -26,7 +26,7 @@ typedef std::vector<PackedVertex> PackedVertices;
 
 class CRenderSystemGLES;
 
-class CGUITextureGLES : public CGUITexture
+class CGUITextureGLES : public CGUITextureBase
 {
 public:
   CGUITextureGLES(float posX, float posY, float width, float height, const CTextureInfo& texture);
