@@ -18,22 +18,11 @@
 
 #include <cstddef>
 
-CGUITextureBase* CGUITextureBase::CreateTexture(
-    float posX, float posY, float width, float height, const CTextureInfo& texture)
+CGUITextureGL::CGUITextureGL(float posX, float posY, float width, float height, const CTextureInfo &texture)
+: CGUITextureBase(posX, posY, width, height, texture)
 {
-  return new CGUITextureGL(posX, posY, width, height, texture);
-}
-
-CGUITextureGL::CGUITextureGL(
-    float posX, float posY, float width, float height, const CTextureInfo& texture)
-  : CGUITextureBase(posX, posY, width, height, texture)
-{
+  memset(m_col, 0, sizeof(m_col));
   m_renderSystem = dynamic_cast<CRenderSystemGL*>(CServiceBroker::GetRenderSystem());
-}
-
-CGUITextureGL* CGUITextureGL::Clone() const
-{
-  return new CGUITextureGL(*this);
 }
 
 void CGUITextureGL::Begin(UTILS::Color color)
@@ -245,10 +234,10 @@ void CGUITextureGL::Draw(float *x, float *y, float *z, const CRect &texture, con
   }
 }
 
-void CGUITextureBase::DrawQuad(const CRect& rect,
-                               UTILS::Color color,
-                               CTexture* texture,
-                               const CRect* texCoords)
+void CGUITextureGL::DrawQuad(const CRect& rect,
+                             UTILS::Color color,
+                             CTexture* texture,
+                             const CRect* texCoords)
 {
   CRenderSystemGL *renderSystem = dynamic_cast<CRenderSystemGL*>(CServiceBroker::GetRenderSystem());
   if (texture)
