@@ -136,7 +136,7 @@ void CGUIWindowSystemInfo::FrameMove()
     SetControlLabel(i++, "%s %s", 22007, SYSTEM_RENDER_VENDOR);
     SetControlLabel(i++, "%s %s", 22009, SYSTEM_RENDER_VERSION);
 #if defined(TARGET_LINUX)
-    SetControlLabel(i++, "%s %s", 39153, SYSTEM_PLATFORM_WINDOWING);
+    SetControlLabel(i++, "%s %s", 39153, SYSTEM_PLATFORM_LINUX_RASPBERRY_PI);
 #endif
 #else
     SetControlLabel(i++, "%s %s", 22024, SYSTEM_RENDER_VERSION);
