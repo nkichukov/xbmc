@@ -192,14 +192,14 @@ CBaseTexture *CBaseTexture::LoadFromFile(const std::string& texturePath, unsigne
       if (!inputBuffSize)
         return NULL;
 
-      CBaseTexture* texture = CBaseTexture::CreateTexture();
+      CTexture *texture = new CTexture();
       texture->LoadFromMemory(width, height, width*4, XB_FMT_RGBA8, true, inputBuff);
       delete [] inputBuff;
       return texture;
     }
   }
 #endif
-  CBaseTexture* texture = CBaseTexture::CreateTexture();
+  CTexture *texture = new CTexture();
   if (texture->LoadFromFileInternal(texturePath, idealWidth, idealHeight, requirePixels, strMimeType))
     return texture;
   delete texture;
@@ -208,7 +208,7 @@ CBaseTexture *CBaseTexture::LoadFromFile(const std::string& texturePath, unsigne
 
 CBaseTexture *CBaseTexture::LoadFromFileInMemory(unsigned char *buffer, size_t bufferSize, const std::string &mimeType, unsigned int idealWidth, unsigned int idealHeight)
 {
-  CBaseTexture* texture = CBaseTexture::CreateTexture();
+  CTexture *texture = new CTexture();
   if (texture->LoadFromFileInMem(buffer, bufferSize, mimeType, idealWidth, idealHeight))
     return texture;
   delete texture;
