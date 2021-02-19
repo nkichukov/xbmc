@@ -7,10 +7,9 @@
  */
 
 #include "GUIFontTTFDX.h"
-
 #include "GUIFontManager.h"
 #include "GUIShaderDX.h"
-#include "TextureDX.h"
+#include "Texture.h"
 #include "rendering/dx/DeviceResources.h"
 #include "rendering/dx/RenderContext.h"
 #include "utils/log.h"
@@ -216,7 +215,7 @@ void CGUIFontTTFDX::ClearReference(CGUIFontTTFDX* font, CD3DBuffer* pBuffer)
     font->m_buffers.erase(it);
 }
 
-CTexture* CGUIFontTTFDX::ReallocTexture(unsigned int& newHeight)
+CBaseTexture* CGUIFontTTFDX::ReallocTexture(unsigned int& newHeight)
 {
   assert(newHeight != 0);
   assert(m_textureWidth != 0);

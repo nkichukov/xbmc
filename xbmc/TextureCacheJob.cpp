@@ -63,7 +63,7 @@ bool CTextureCacheJob::DoWork()
   return CacheTexture();
 }
 
-bool CTextureCacheJob::CacheTexture(CTexture** out_texture)
+bool CTextureCacheJob::CacheTexture(CBaseTexture **out_texture)
 {
   // unwrap the URL as required
   std::string additional_info;
@@ -80,7 +80,7 @@ bool CTextureCacheJob::CacheTexture(CTexture** out_texture)
   else if (m_details.hash == m_oldHash)
     return true;
 
-  CTexture* texture = LoadImage(image, width, height, additional_info, true);
+  CBaseTexture *texture = LoadImage(image, width, height, additional_info, true);
   if (texture)
   {
     if (texture->HasAlpha())
@@ -121,7 +121,7 @@ bool CTextureCacheJob::ResizeTexture(const std::string &url, uint8_t* &result, s
   if (image.empty())
     return false;
 
-  CTexture* texture = LoadImage(image, width, height, additional_info, true);
+  CBaseTexture *texture = LoadImage(image, width, height, additional_info, true);
   if (texture == NULL)
     return false;
 
@@ -171,26 +171,20 @@ std::string CTextureCacheJob::DecodeImageURL(const std::string &url, unsigned in
   return image;
 }
 
-CTexture* CTextureCacheJob::LoadImage(const std::string& image,
-                                      unsigned int width,
-                                      unsigned int height,
-                                      const std::string& additional_info,
-                                      bool requirePixels)
+CBaseTexture *CTextureCacheJob::LoadImage(const std::string &image, unsigned int width, unsigned int height, const std::string &additional_info, bool requirePixels)
 {
   if (additional_info == "music")
   { // special case for embedded music images
     EmbeddedArt art;
     if (CMusicThumbLoader::GetEmbeddedThumb(image, art))
-      return CTexture::LoadFromFileInMemory(art.m_data.data(), art.m_size, art.m_mime, width,
-                                            height);
+      return CBaseTexture::LoadFromFileInMemory(art.m_data.data(), art.m_size, art.m_mime, width, height);
   }
 
   if (StringUtils::StartsWith(additional_info, "video_"))
   {
     EmbeddedArt art;
     if (CVideoThumbLoader::GetEmbeddedThumb(image, additional_info.substr(6), art))
-      return CTexture::LoadFromFileInMemory(art.m_data.data(), art.m_size, art.m_mime, width,
-                                            height);
+      return CBaseTexture::LoadFromFileInMemory(art.m_data.data(), art.m_size, art.m_mime, width, height);
   }
 
   // Validate file URL to see if it is an image
@@ -200,8 +194,7 @@ CTexture* CTextureCacheJob::LoadImage(const std::string& image,
       && !StringUtils::StartsWithNoCase(file.GetMimeType(), "image/") && !StringUtils::EqualsNoCase(file.GetMimeType(), "application/octet-stream")) // ignore non-pictures
     return NULL;
 
-  CTexture* texture =
-      CTexture::LoadFromFile(image, width, height, requirePixels, file.GetMimeType());
+  CBaseTexture *texture = CBaseTexture::LoadFromFile(image, width, height, requirePixels, file.GetMimeType());
   if (!texture)
     return NULL;
 

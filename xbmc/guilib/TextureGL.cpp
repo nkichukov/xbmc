@@ -16,13 +16,15 @@
 #include "utils/MemUtils.h"
 #include "utils/log.h"
 
-CTexture* CTexture::CreateTexture(unsigned int width, unsigned int height, unsigned int format)
+CBaseTexture* CBaseTexture::CreateTexture(unsigned int width,
+                                          unsigned int height,
+                                          unsigned int format)
 {
   return new CGLTexture(width, height, format);
 }
 
 CGLTexture::CGLTexture(unsigned int width, unsigned int height, unsigned int format)
-  : CTexture(width, height, format)
+: CBaseTexture(width, height, format)
 {
   unsigned int major, minor;
   CServiceBroker::GetRenderSystem()->GetRenderVersion(major, minor);

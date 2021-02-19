@@ -11,13 +11,15 @@
 #include "utils/MemUtils.h"
 #include "utils/log.h"
 
-CTexture* CTexture::CreateTexture(unsigned int width, unsigned int height, unsigned int format)
+CBaseTexture* CBaseTexture::CreateTexture(unsigned int width,
+                                          unsigned int height,
+                                          unsigned int format)
 {
   return new CDXTexture(width, height, format);
 }
 
 CDXTexture::CDXTexture(unsigned int width, unsigned int height, unsigned int format)
-  : CTexture(width, height, format)
+: CBaseTexture(width, height, format)
 {
 }
 
