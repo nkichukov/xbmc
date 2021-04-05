@@ -22209,3 +22209,8 @@ msgstr ""
 msgctxt "#39119"
 msgid "Last modified"
 msgstr ""
+
+#: xbmc/settings/dialogs/GUIDialogContentSettings.cpp
+msgctxt "#39120"
+msgid "Skip filename matching for external audio tracks"
+msgstr ""
