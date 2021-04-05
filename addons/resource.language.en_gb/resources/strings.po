@@ -14543,6 +14543,7 @@ msgctxt "#21876"
 msgid "Original TX reference"
 msgstr ""
 
+#: xbmc/playlist/SmartPlayList.cpp
 msgctxt "#21877"
 msgid "Date created"
 msgstr ""
@@ -22159,4 +22160,9 @@ msgstr ""
 #: system/settings/rbp.xml
 msgctxt "#38193"
 msgid "%i ms"
+msgstr ""
+
+#: xbmc/playlists/SmartPlaylist.cpp
+msgctxt "#39119"
+msgid "Last modified"
 msgstr ""
